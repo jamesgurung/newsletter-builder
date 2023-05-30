@@ -1,0 +1,43 @@
+@media only screen and (max-width:640px) {
+  div[role="article"]>table[role="presentation"] {
+    background-color: #fff !important;
+  }
+  td.email-content {
+    padding: 10px 20px !important
+  }
+}
+@media only screen and (min-width: 641px) {
+  html {
+    min-height: 100%; background-color: #f6f6f6
+  }
+  body {
+    padding: 24px 0 !important;
+  }
+}
+@media only screen and (min-width: 1000px) and (max-width: 1399px) {
+  body {
+    transform-origin: top;
+    transform: scale(1.2);
+  }
+}
+@media only screen and (min-width: 1400px) {
+  body {
+    transform-origin: top;
+    transform: scale(1.5);
+  }
+}
+@media only print {
+  #webheader, #webheader2 {
+    display: none !important; 
+  }
+}
+#webheader, #webheader2 {
+  height: 16px; margin-top: 10px; display: flex; flex-direction: row; width: 100%; font-family: arial, helvetica, sans-serif; font-size: 14px;
+}
+#webheader2 {
+  margin-bottom: 12px;
+}
+body {
+  overflow-y: scroll;
+  overflow-x: hidden;
+}

@@ -1,0 +1,406 @@
+﻿* {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: #f6f6f6;
+  overflow-y: scroll;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  max-width: 640px;
+  margin: 24px auto 24px;
+  background-color: white;
+  padding: 20px 40px;
+  color: #222;
+}
+
+@media (max-width: 640px) {
+  html {
+    background-color: initial;
+  }
+  body {
+    padding: 24px;
+    margin: 0;
+  }
+}
+
+h1 {
+  font-family: arial, helvetica, sans-serif;
+  font-size: 26px;
+  line-height: 34px;
+  margin: 12px 0 0 0;
+  padding: 0;
+  text-align: center;
+}
+
+h1 :is(a,a:visited,a:active) {
+  color: #222;
+}
+
+h2 {
+  text-align: center;
+  font-size: 16px;
+  line-height: 22px;
+  break-after: avoid;
+  margin: 0;
+  padding: 0;
+}
+
+p {
+  text-align: justify;
+  line-height: 22px;
+  margin: 12px 0;
+  padding: 0;
+}
+
+hr {
+  height: 1px;
+  width: 100%;
+  border: 0;
+  border-top: 1px solid #dedede;
+  margin: 24px 0;
+  padding: 0;
+}
+
+ul {
+  margin: 0 0 18px 30px;
+  padding: 0;
+}
+
+ul.events {
+  margin-top: 24px;
+  margin-bottom: 36px;
+}
+
+li {
+  font-family: arial, helvetica, sans-serif;
+  line-height: 22px;
+  margin: 0 0 4px 0;
+  padding: 0;
+}
+
+a, a:visited {
+  color: #1188E6;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+li {
+  margin-bottom: 10px;
+  margin-top: 10px;
+}
+
+input[type="date" i] {
+  font-family: arial, helvetica, sans-serif;
+  font-size: 14px;
+}
+
+a.delete, a.deletearticle, a.approve, a.moveup, a.movedown, a.publish, a.view {
+  font-size: 8pt;
+}
+
+.pendingapproval {
+  color: grey;
+}
+
+#newsletters li:first-child li:nth-child(2) a.moveup {
+ display: none;
+}
+
+#newsletters li:nth-last-child(2) li:last-child a.movedown {
+ display: none;
+}
+
+#newsletters li li:not(:last-child) {
+  position: relative;
+  padding-left: 24px
+}
+
+.status {
+  cursor: default;
+  user-select: none;
+  position: absolute;
+  top: 3px;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  border: 1px solid black
+}
+
+.status.approved {
+  background-color: #0da61f;
+}
+
+.status.submitted {
+  background-color: #afa;
+}
+
+.status.inprogress {
+  background-color: #ffa;
+}
+
+.status.notstarted {
+  background-color: #f3f3f3;
+}
+
+#headline, .section-text {
+  border: 3px solid #eee;
+  padding: 6px;
+  margin: 6px 0;
+}
+
+.section-text {
+  text-align: justify;
+}
+
+.section-image {
+  border: 3px solid #eee;
+  aspect-ratio: 16 / 9;
+  margin: 6px 0;
+}
+
+.section-image > label {
+  display: block;
+  color: grey;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.section-image span {
+  width: 100%;
+}
+
+.section-image img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 6px;
+}
+
+.alt-text, .consent, .consent-notes {
+  padding: 6px;
+  text-align: center;
+}
+
+.alt-text {
+  font-style: italic;
+}
+
+.clear-image-section, .set-cover-photo-section {
+  text-align: right;
+  padding: 6px;
+  font-size: 10px;
+}
+
+[contenteditable=true]:empty:not(:focus):before {
+  content: attr(data-placeholder);
+  color: grey;
+  cursor: text;
+  pointer-events: none;
+  display: block;
+  font-style: normal;
+}
+
+section {
+  position: relative;
+}
+
+section:hover .section-menu {
+  opacity: 1;
+}
+
+.section-menu {
+  position: absolute;
+  right: -30px;
+  top: 0;
+  opacity: 0;
+  padding: 6px 10px;
+  height: 100%;
+}
+
+.section-delete {
+  cursor: pointer;
+  color: #ddd;
+}
+
+.section-delete:hover {
+  color: #1188E6;
+}
+
+section:has(.section-delete:hover) > div:not(.section-menu) {
+  border-color: #1188E6;
+  border-style: dashed;
+  border-width: 3px;
+}
+
+#image-editor {
+  display: none;
+  opacity: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #f6f6f6;
+  text-align: center;
+}
+
+#image-editor-text {
+  width: 90%;
+  margin: 18px auto;
+}
+
+#cropper-container {
+  width: 90%;
+  height: 90%;
+  margin: 0 auto;
+  background-color: white;
+}
+
+#rotate-left {
+  display: inline-block;
+  transform: rotate(-120deg);
+}
+
+#rotate-right {
+  display: inline-block;
+  transform: rotate(120deg);
+}
+
+#submit, #requestaifeedback {
+  background-color: #1188E6;
+  color: white;
+  padding: 8px 16px;
+  font-weight: bold;
+}
+
+#approve {
+  background-color: #0da61f;
+  color: white;
+  padding: 8px 16px;
+  font-weight: bold;
+}
+
+#submit.disabled, #approve.disabled, #requestaifeedback.disabled {
+  background-color: #999;
+  color: white;
+  cursor: default;
+}
+
+#aifeedback {
+  background-color: #eee;
+  padding: 12px;
+  text-align: left;
+}
+
+#aifeedback p {
+  text-align: left;
+}
+
+#aifeedbackcontent, #aifeedbackbubble, #aifeedbackfinish {
+  margin-bottom: 12px;
+}
+
+.typing {
+  background-color: #ddd;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.typing span {
+  display: block;
+  height: 5px;
+  width: 5px;
+  border-radius: 50%;
+  background-color: #8d8d8d;
+  position: relative;
+  top: 1px;
+  margin: 2px;
+  animation: typing 1000ms ease-in-out infinite;
+  animation-delay: 3600ms;
+}
+
+.typing span:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.typing span:nth-child(2) {
+  animation-delay: 333ms;
+}
+
+.typing span:nth-child(3) {
+  animation-delay: 666ms;
+}
+
+@keyframes typing {
+  0% {
+    transform: scale(1)
+  }
+  33% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.4);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.publish-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0 30px;
+}
+
+.publish-table td {
+  border: 1px solid #ddd;
+  padding: 6px;
+}
+
+.publish-table td:first-child {
+  width: 200px;
+}
+
+.publish-table td:last-child {
+  font-weight: bold;
+}
+
+span.green {
+  color: #0da61f;
+}
+
+span.red {
+  color: #e60000;
+}
+
+span.grey {
+  color: #999;
+}
+
+#progress {
+  display: none;
+  width: 100%;
+  height: 20px;
+  margin: 30px 0;
+  border: solid 1px #ddd;
+}
+
+#progress-bar {
+  width: 0%;
+  height: 100%;
+  background-color: #7cc5ff;
+  transition: width 1.5s ease-in-out;
+}

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="https://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1" />
+  <meta charset="utf-8" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta property="og:title" content="YOUR_ORGANISATION Newsletters" />
+  <meta property="og:description" content="News and photos from YOUR_ORGANISATION." />
+  <meta property="og:url" content="https://YOUR_NEWSLETTER_DOMAIN" />
+  <meta property="og:image" content="https://YOUR_NEWSLETTER_DOMAIN/logo-hd.jpg" />
+  <link rel="stylesheet" href="/webstyles.css">
+  <link rel="icon" type="image/png" sizes="192x192"  href="/icon-192x192.png">
+  <link rel="manifest" href="/manifest.json">
+  <title>Newsletters</title>
+  <style type="text/css">
+    img {display:block}
+    @media only screen and (max-width:640px) {
+      .email-content {
+        padding: 10px 20px !important
+      }
+      div[role="article"]>table[role="presentation"] {
+        background-color: #fff !important;
+      }
+    }
+    @media only screen and (min-width: 641px) {
+      html {
+        min-height: 100%; background-color: #f6f6f6
+      }
+      body {
+        padding: 24px 0 !important;
+      }
+    }
+    body {
+      margin: 0; padding: 0; word-spacing: normal;
+    }
+    div[role="article"] {
+      -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;
+    }
+    div[role="article"]>table[role="presentation"] {
+      background-color: #f6f6f6;
+    }
+    table[role="presentation"] {
+      margin: 0; padding: 0; 
+    }
+    tr {
+      margin: 0; padding: 0;
+    }
+    td.email-content {
+      background-color: #fff; margin: 0; padding: 20px 40px;
+    }
+    td.header {
+      text-align: center; padding: 6px 0;
+    }
+    h1 {
+      font-family: arial, helvetica, sans-serif; font-size:26px; line-height: 34px; color: #222; margin: 20px 0 4px; padding: 0;
+    }
+    img.logo {
+      margin: 0 auto; padding: 0;
+    }
+    h2 {
+      text-align: center; font-family: arial, helvetica, sans-serif; font-size:16px; line-height: 22px; color: #222; margin: 24px 0 18px; padding: 0;
+    }
+    p {
+      text-align: justify; font-family: arial, helvetica, sans-serif; font-size:14px; line-height: 22px; color: #555; margin: 12px 0; padding: 0;
+    }
+    ul {
+      margin: 0 0 18px 30px; padding: 0;
+    }
+    li {
+      font-family: arial, helvetica, sans-serif; font-size:14px; line-height: 22px; color: #555; margin: 0 0 10px 0; padding: 0;
+    }
+    a {
+      color: #1188E6; text-decoration:none;
+    }
+  </style>
+</head>
+
+<body>
+  <div role="article">
+    <table role="presentation" width="100%">
+      <tr>
+        <td></td>
+        <td class="email-content" width="560">
+
+          <table role="presentation" width="100%">
+            <tr>
+              <td class="header">
+                <img class="logo" alt="YOUR_ORGANISATION Logo" src="https://YOUR_NEWSLETTER_DOMAIN/logo.jpg" width="125" height="125">
+                <h1>YOUR_ORGANISATION Newsletters</h1>
+              </td>
+            </tr>
+          </table>
+
+          <div id="newsletters">
+          </div>
+
+        </td>
+        <td></td>
+      </tr>
+    </table>
+  </div>
+  <script type="text/javascript">
+    fetch('list.json').then(res => res.json()).then(newsletters => {
+      const div = document.getElementById('newsletters');
+      const today = new Date().toISOString().slice(0, 10);
+      const before3pm = new Date().getHours() < 15;
+      let currentTerm = '';
+      let ul = null;
+      for (const item of newsletters) {
+        if (item.date > today || (item.date === today && before3pm)) continue;
+        const { term, title } = getTermAndTitle(item.date);
+        if (term !== currentTerm) {
+          currentTerm = term;
+          const h2 = document.createElement('h2');
+          h2.textContent = term;
+          div.appendChild(h2);
+          ul = document.createElement('ul');
+          div.appendChild(ul);
+        }
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        const b = document.createElement('b');
+        b.textContent = title;
+        a.appendChild(b);
+        a.appendChild(document.createTextNode(' - ' + item.description));
+        a.setAttribute('href', '/' + item.date);
+        li.appendChild(a);
+        ul.appendChild(li);
+      }
+    });
+
+    function getTermAndTitle(isoDateString) {
+      const date = new Date(isoDateString);
+      const month = date.getMonth();
+      const year = date.getFullYear();
+      const term = month < 3 ? 'Spring' : month < 8 ? 'Summer' : 'Autumn';
+      return {
+        term: term + ' ' + year,
+        title: date.getDate() + ' ' + date.toLocaleString('en-GB', { month: 'long' }) + ' ' + year
+      };
+    }
+  </script>
+</body>
+
+</html>

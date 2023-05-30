@@ -1,0 +1,137 @@
+﻿@page
+@inject TableServiceClient client
+@{
+  var service = new TableService(client, User.GetDomain());
+  var events = await service.ListEventsAsync();
+  var newsletters = await service.ListNewslettersAsync();
+  var articles = await service.ListArticlesAsync();
+  var username = User.GetUsername();
+  var isEditor = User.IsInRole(Roles.Editor);
+  var users = isEditor ? await service.ListUsersAsync() : null;
+  var nextDate = newsletters.Any() ? DateOnly.ParseExact(newsletters.Last().RowKey, "yyyy-MM-dd").AddDays(7) : DateOnly.FromDateTime(DateTime.Today);
+}
+<h2>Newsletters</h2>
+<ul id="newsletters">
+  @foreach (var newsletter in newsletters)
+  {
+    var newsletterArticles = RenderPageModel.OrderArticles(articles.Where(o => o.RowKey.StartsWith(newsletter.RowKey)), newsletter.ArticleOrder);
+    var deadlineReached = DateOnly.ParseExact(newsletter.Deadline, "yyyy-MM-dd") <= DateOnly.FromDateTime(DateTime.Today);
+    <li data-key="@newsletter.RowKey" data-enableadd="@((isEditor || !deadlineReached).ToString().ToLowerInvariant())">
+      <b>@newsletter.RowKey</b> (deadline @newsletter.Deadline)
+      @if (isEditor) {
+        <a class="publish" href="/@newsletter.RowKey/publish">(Publish)</a>
+        <a class="delete">&#10006;</a>
+      }
+      <ul>
+        @foreach (var article in newsletterArticles)
+        {
+          var name = article.ShortName;
+          if (name == "intro" && !isEditor) continue;
+          <li data-key="@article.RowKey">
+            @if (article.IsApproved) {<div class="status approved" title="Approved"></div>}
+            else if (article.IsSubmitted) {<span class="status submitted" title="Submitted"></span>}
+            else if (article.Content is not null) {<span class="status inprogress" title="In Progress"></span>}
+            else {<span class="status notstarted" title="Not Started"></span>}
+            @if (isEditor || article.ContributorList.Contains(username))
+            {
+              @:<a href="/@article.Date/@name"><b>@name</b></a>
+            } else
+            {
+              @:<b>@name</b>
+            }
+            @if (name != "intro") {
+              @: (@article.Contributors)
+              @if (isEditor) {
+                <a class="moveup">&#9650;</a>
+                <a class="movedown">&#9660;</a>
+              }
+              @if (!article.IsApproved && (isEditor || (article.Owner == username && !deadlineReached))) {
+                <a class="deletearticle">&#10006;</a>
+              }
+            }
+          </li>
+        }
+      </ul>
+    </li>
+  }
+  @if (isEditor)
+  {
+    <li id="addnewslettersection">
+      <input id="newsletterdate" type="date" value="@nextDate.ToString("yyyy-MM-dd")" style="margin-right: 6px; width: 108px; font-weight: bold" />
+      due: <input id="newsletterdeadline" type="date" value="@nextDate.AddDays(-Organisation.Instance.DefaultDeadlineDaysBeforePublish).ToString("yyyy-MM-dd")" style="margin-right: 6px; width: 108px" />
+      <a id="addnewsletter">Add</a>
+    </li>
+  }
+</ul>
+<hr />
+<h2>Events</h2>
+<ul id="events">
+  @foreach (var ev in events)
+  {
+    <li data-key="@ev.RowKey" class="@(ev.IsApproved ? null : "pendingapproval")">
+      <b>@ev.DisplayDate</b> - @ev.DisplayTitle
+      @if (!ev.IsApproved) {
+        if (isEditor) {
+          <a class="approve">(Approve)</a>
+        } else {
+          <text>(Pending Approval) </text>
+        }
+      }
+      @if (isEditor || ev.Owner == username)
+      {
+        <a class="delete">&#10006;</a>
+      }
+    </li>
+  }
+  <li id="addeventsection">
+    <input id="eventstart" type="date" style="margin-bottom: 3px; width: 108px; font-weight: bold" autocomplete="off" data-lpignore="true" data-form-type="other" /> -
+    <input id="eventend" type="date" style="margin-bottom: 3px; width: 108px; font-weight: bold" autocomplete="off" data-lpignore="true" data-form-type="other" /> -
+    <input id="eventtitle" placeholder="Event Title" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 247px; margin-right: 6px" />
+    <a id="addevent">Add</a>
+  </li>
+</ul>
+
+@if (isEditor) {
+  <hr />
+  <h2>Users</h2>
+  <ul id="users">
+    @foreach (var user in users)
+    {
+      <li data-key="@user.RowKey"><b>@user.RowKey</b> - @user.DisplayName (@user.FirstName) @if (user.RowKey != username) {<a class="delete">&#10006;</a>}</li>
+    }
+    <li id="addusersection">
+      <input id="username" pattern="[a-z0-9'.-]+" placeholder="Username" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-bottom: 3px; margin-right: 6px; font-weight: bold" />
+      <input id="userdisplay" placeholder="Display Name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-bottom: 3px; margin-right: 6px" />
+      <input id="userfirst" placeholder="First Name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-right: 6px" />
+      <a id="adduser">Add</a>
+    </li>
+  </ul>
+  <hr />
+  <h2>Recipients</h2>
+  <p style="text-align: center"><a href="/recipients">Manage recipients</a></p>
+}
+
+<template id="addarticletemplate">
+  <li class="addarticlesection">
+    <input pattern="[a-z0-9]+" class="articlename" placeholder="Article Name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-bottom: 3px; margin-right: 6px" />
+    @if (isEditor)
+    {
+      <input pattern="[a-z0-9'.,-]+" class="articlecontributors" placeholder="Contributors" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-right: 6px" />
+    }
+    <a class="addarticle">Add</a>
+  </li>
+</template>
+
+@section Scripts {
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    const isEditor = @isEditor.ToString().ToLowerInvariant();
+    const me = '@username.ToString()';
+    @if (isEditor) {
+    @:const usernames = [@Html.Raw(string.Join(',', users.Select(o => $"\"{o.RowKey}\"")))];
+      @:const defaultDeadlineOffset = @Organisation.Instance.DefaultDeadlineDaysBeforePublish;
+    }
+  </script>
+  <script src="/js/shared.js" asp-append-version="true"></script>
+  <script src="/js/index.js" asp-append-version="true"></script>
+}

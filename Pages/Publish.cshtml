@@ -1,0 +1,62 @@
+﻿@page "/{date:regex(^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$)}/publish"
+@model PublishPageModel
+@{
+}
+<p style="text-align: center; color: grey">Newsletter: <b>@Model.NewsletterKey</b></p>
+<h2>Publish</h2>
+<table class="publish-table">
+  <tr><td>Approve all articles</td><td>@Html.Raw(Model.AllArticlesApproved ? "<span class=\"green\">Done</span>" : "<span class=\"grey\">Incomplete</span>")</td></tr>
+  <tr><td>Set cover image</td><td>@Html.Raw(Model.CoverImageSet ? "<span class=\"green\">Done</span>" : "<span class=\"grey\">Incomplete</span>")</td></tr>
+  <tr><td>Publish newsletter to website</td>
+    <td id="publish-box">
+      @if (Model.IsPublished)
+      {
+        <span class="green">Done</span>
+      }
+      else if (!Model.AllArticlesApproved || !Model.CoverImageSet)
+      {
+        <span class="grey">&ndash;</span>
+      }
+      else
+      {
+        @:<a href="/@Model.NewsletterKey" target="_blank">Preview</a> | <a id="publish">Publish</a>
+      }
+    </td>
+  </tr>
+  <tr><td>Send to mailing list</td>
+    <td id="send-box">
+      @if (Model.IsSent)
+      {
+        <span class="green">Done</span>
+      }
+      else if (Model.IsPublished)
+      {
+        @:<a class="send" data-to="preview">Send preview</a> | <a class="send" data-to="qa">Send to QA</a> |
+        @if (Model.IsTimeToSend) {
+          <a class="send" data-to="all">Send all</a>
+        }
+        else
+        {
+          <span class="grey">Send all (too early)</span>
+        }
+      }
+      else
+      {
+        <span class="grey">&ndash;</span>
+      }
+    </td>
+  </tr>
+</table>
+<div id="progress">
+  <div id="progress-bar"></div>
+</div>
+
+@section Scripts {
+  <script>
+    const key = '@Model.NewsletterKey';
+    const description = '@Html.Raw(Model.Description.Replace("'", "\\'"))';
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0-preview.4.23260.4/signalr.min.js" integrity="sha512-yiABJR9EVuPjD1Fhy2xdkNQZG4akO16trbh/6aHoZFaTfrH0VEtxUdyjTtwB3Ki099QIQZ+O4GH43IawL9075w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="/js/shared.js" asp-append-version="true"></script>
+  <script src="/js/publish.js" asp-append-version="true"></script>
+}

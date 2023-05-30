@@ -1,0 +1,34 @@
+﻿@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+  var antiforgeryToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newsletter Builder</title>
+  <link rel="stylesheet" href="/css/site.css" asp-append-version="true" />
+</head>
+<body>
+
+  <h1><a href="/">@Organisation.Instance.Name Newsletter</a></h1>
+  @if (User.Identity.IsAuthenticated)
+  {
+    <p style="text-align: center">
+      @User.Identity.Name (@User.GetRole()) &ndash; <a href="/auth/logout">Logout</a>
+    </p>
+    <hr />
+  }
+  <div>
+    @RenderBody()
+  </div>
+  @if (User.Identity.IsAuthenticated) {
+  <script>
+    const domain = '@User.GetDomain()';
+    const antiforgeryToken = '@antiforgeryToken';
+  </script>
+  }
+  @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

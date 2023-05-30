@@ -1,0 +1,178 @@
+﻿@page "/{date:regex(^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$)}"
+@using NewsletterBuilder.Entities;
+@using Markdig;
+@model RenderPageModel
+@{
+  Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en" xmlns="https://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1" />
+  <meta charset="utf-8" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <!--[if !mso]><!-->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!--<![endif]-->
+  <link id="webstyles" rel="stylesheet" href="@Organisation.Instance.NewsletterUrl/webstyles.css">
+  <style id="media" type="text/css">
+    img {display:block}
+    @@media only screen and (max-width:640px) {
+      .email-content {
+        padding: 0 !important
+      }
+    }
+  </style>
+  <style type="text/css">
+    body {
+      margin: 0; padding: 0; word-spacing: normal;
+    }
+    #preheader {
+      display:none !important; visibility:hidden; mso-hide:all; font-size:1px; color:#ffffff; line-height:1px; max-height:0px; max-width:0px; opacity:0; overflow:hidden;
+      -premailer-aria-hidden: true;
+    }
+    div[role="article"] {
+      -premailer-aria-roledescription: email; -premailer-lang: en;
+      -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;
+    }
+    div[role="article"]>table[role="presentation"] {
+      background-color: #f6f6f6;
+    }
+    table[role="presentation"] {
+      -premailer-border: 0; -premailer-cellspacing: 0; -premailer-cellpadding: 0;
+      margin: 0; padding: 0; 
+    }
+    tr {
+      margin: 0; padding: 0;
+    }
+    td.email-content {
+      background-color: #fff; margin: 0; padding: 20px 40px; position: relative;
+    }
+    td.header {
+      text-align: center; padding: 6px 0;
+    }
+    #footer p {
+      text-align:center; font-family: arial, helvetica, sans-serif; font-size:12px; line-height: 18px; color: #7b7b7b; padding: 0; margin: 0 0 12px 0;
+    }
+    h1 {
+      font-family: arial, helvetica, sans-serif; font-size:26px; line-height: 34px; color: #222; margin: 20px 0 0 0; padding: 0;
+    }
+    img.logo {
+      margin: 0 auto; padding: 0;
+    }
+    img.photo {
+      -premailer-width: 560;
+      max-width:100% !important; width:100%; height:auto !important; margin: 0 0 3px 0; padding: 0;
+    }
+    h2 {
+      text-align: center; font-family: arial, helvetica, sans-serif; font-size:16px; line-height: 22px; color: #222; break-after: avoid; margin: 0; padding: 0;
+    }
+    p {
+      text-align: justify; font-family: arial, helvetica, sans-serif; font-size:14px; line-height: 22px; color: #555; margin: 12px 0; padding: 0;
+    }
+    hr {
+      height: 1px; width: 100%; border: 0; border-top: 1px solid #dedede; margin: 24px 0; padding: 0;
+    }
+    ul {
+      margin: 0 0 18px 30px; padding: 0;
+    }
+    ul.events {
+      margin: 24px 0 18px 30px; margin-bottom: 36px;
+    }
+    li {
+      font-family: arial, helvetica, sans-serif; font-size:14px; line-height: 22px; color: #555; margin: 0 0 4px 0; padding: 0;
+    }
+    a {
+      -premailer-target: _blank;
+      color: #1188E6; text-decoration:none;
+    }
+  </style>
+  <!--[if mso]>
+  <style type="text/css">
+    table {border-collapse:collapse;border:0;border-spacing:0;margin:0;}
+    div, td {padding:0;}
+    div {margin:0 !important;}
+  </style>
+  <noscript>
+  <xml>
+    <o:OfficeDocumentSettings>
+      <o:PixelsPerInch>96</o:PixelsPerInch>
+    </o:OfficeDocumentSettings>
+  </xml>
+  </noscript>
+  <![endif]-->
+  <meta property="og:image" content="@(Model.CoverPhoto is null ? null : $"{Organisation.Instance.NewsletterUrl}/{Model.NewsletterDate}/{Model.CoverPhoto}")" />
+</head>
+
+<body>
+  <div id="preheader"></div>
+  <div role="article">
+    <table role="presentation" width="100%">
+      <tr>
+        <td>&#8203;</td>
+        <td class="email-content" width="560">
+
+          <div id="webheader"></div>
+          <table role="presentation" width="100%">
+            <tr>
+              <td class="header">
+                <img class="logo" alt="@Organisation.Instance.Name Logo" src="@Organisation.Instance.NewsletterUrl/logo.jpg" width="125" height="125">
+                <h1>@Html.Raw(IfBlank(Model.Articles[0].Content.Headline, "X"))</h1>
+              </td>
+            </tr>
+          </table>
+
+          @foreach (var article in Model.Articles)
+          {
+          @if (article.ShortName != "intro")
+          {
+          <h2>@Html.Raw(IfBlank(article.Content.Headline, article.ShortName).Replace(" - ", " &ndash; "))</h2>
+          }
+          @for (var i = 0; i < article.Content.Sections.Count; i++)
+          {
+          var articleSection = article.Content.Sections[i];
+              var text = Markdown.ToHtml(IfBlank(articleSection.Text, "X")).Replace("<p>", string.Empty).Replace("</p>", string.Empty).Replace(" - ", " &ndash; ").Trim();
+          var showName = i == article.Content.Sections.Count - 1 && article.AuthorDisplayName is not null
+            ? $" &ndash; <i>{article.AuthorDisplayName}</i>"
+            : string.Empty;
+          <p id="@(i == 0 && article.ShortName == "intro" ? "intro" : null)">@Html.Raw(text + showName)</p>
+          @if (articleSection.IncludeImage)
+          {
+          <img class="photo" alt="@articleSection.Alt" src="@Organisation.Instance.NewsletterUrl/@Model.NewsletterDate/@articleSection.ImageRenderName">
+          }
+          }
+          <hr />
+          @:
+          }
+
+          <h2>Upcoming Events</h2>
+          <ul class="events">
+          @foreach (var ev in Model.Events) {
+            <li><b>@ev.DisplayDate</b> - @ev.DisplayTitle</li>
+          }
+          </ul>
+          <hr />
+
+          <table id="footer" role="presentation" width="100%">
+            <tr>
+              <td>
+                <p><b>@Organisation.Instance.Address</b><br /><br /><b><a href="@Organisation.Instance.NewsletterUrl">View previous newsletters</a></b><br /><br />@Organisation.Instance.Footer<br /><br />If you would prefer to stop receiving regular newsletters, please click: <a href="{{{ pm:unsubscribe }}}">Unsubscribe</a></p>
+              </td>
+            </tr>
+          </table>
+
+        </td>
+        <td>&#8203;</td>
+      </tr>
+    </table>
+  </div>
+
+  <script id="webscript" src="/nav.js"></script>
+</body>
+
+</html>
+
+@functions {
+  private string IfBlank(string str, string valueIfNull) =>  String.IsNullOrEmpty(str) ? valueIfNull : str;
+}

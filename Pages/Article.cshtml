@@ -1,0 +1,94 @@
+﻿@page "/{date:regex(^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$)}/{articleName}"
+@model ArticlePageModel
+
+<p style="text-align: center; color: grey">Newsletter: <b>@Model.Article.Date</b> &nbsp; Article: <b>@Model.Article.ShortName</b></p>
+
+<div id="main" style="display: none">
+
+  <h2 id="headline" contenteditable="true" data-placeholder="@(Model.Article.ShortName == "intro" ? "Newsletter" : "Article") Headline" data-maxlength="80"></h2>
+
+  <article></article>
+
+  <p id="addsectioncontainer" style="text-align: center">
+    @if (Model.IsEditor || Model.IsOwner)
+    {
+      @:<a id="addsection">Add text with image</a>&nbsp; | &nbsp;<a id="addtextsection">Add text only</a>
+    } else {
+      @:<a id="addsection">Add section</a>
+    }
+  </p>
+  <p style="text-align: center; margin: 24px 0">
+    <a id="requestaifeedback">Request review</a>
+  </p>
+  <div id="aifeedback" style="display: none">
+    <p style="margin-bottom: 18px"><b>Feedback from our AI editor:</b>
+    </p>
+    <div id="aifeedbackcontent"></div>
+    <div id="aifeedbackbubble"><div class="typing"><span></span><span></span><span></span></div></div>
+    <div id="aifeedbackfinish" style="display: none">Once you have finished reviewing this feedback and redrafting your article, click the button below to submit.</div>
+  </div>
+  <p style="text-align: center; margin: 24px 0">
+    <a id="submit">Submit completed article to editor</a>
+    @if (Model.IsEditor)
+    {
+      <a id="approve">Approve article</a>
+    }
+  </p>
+  <p style="text-align: center"><a href="/">Back to index</a></p>
+  <p style="color: grey">Notes:</p>
+  <ul style="color: grey">
+    <li>Your changes are saved automatically. Only click submit once the article is complete.</li>
+    <li>Aim for at least 3 paragraphs, each paired with a photo. If you have fewer photos, click the &#10006; icons to remove sections.</li>
+    <li>Each paragraph should be 1-2 sentences.</li>
+    <li>Carefully check your spelling, punctuation, and grammar.</li>
+    <li>Photos must show students, staff, or student work. It is your responsibility to check @Html.Raw(string.IsNullOrEmpty(Organisation.Instance.PhotoConsentUrl) ? "photo consent" : $"<a href=\"{Organisation.Instance.PhotoConsentUrl}\" target=\"blank\">photo consent</a>"). Do not upload other types of images (e.g. logos or infographics).</li>
+  </ul>
+
+  <div id="image-editor">
+    <div id="image-editor-text">
+      Drag and resize the box below to select a high-quality crop of the photo. &nbsp;
+      <a id="rotate-left" title="Rotate left">&#8634;</a> &nbsp;<a id="rotate-right" title="Rotate right">&#8635;</a> &nbsp;
+      <a id="image-upload" style="font-weight: bold">Save</a> &nbsp; <a id="image-cancel">Cancel</a></div>
+    <div id="cropper-container">
+      <img id="cropper-image" />
+    </div>
+  </div>
+
+</div>
+
+<template id="sectiontemplate">
+  <section>
+    <div class="section-text" contenteditable="true" data-placeholder="Type your paragraph here" data-maxlength="500"></div>
+    <div class="section-image">
+      <label><span>Click to add photo</span><input type="file" accept=".jpg,.jpeg,.png" style="display: none" /></label>
+      <div class="set-cover-photo-section"><a class="set-cover-photo">Set as cover photo</a><span class="cover-photo-set"><b>Cover photo set</b></span></div>
+      <img />
+      <div class="alt-text" contenteditable="true" data-placeholder="Type a short description of the photo (for users with screen readers)" data-maxlength="60"></div>
+      <div class="consent"><label><input type="checkbox" /> All students have photo consent</label></div>
+      <div class="consent-notes" contenteditable="true" data-placeholder="Which students need to be blurred? Describe their positions in the photo." data-maxlength="300"></div>
+      <div class="clear-image-section"><a class="clear-image">Clear image</a></div>
+    </div>
+    <div class="section-menu"><a class="section-delete" title="Delete section">&#10006;</a></div>
+  </section>
+</template>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" integrity="sha512-cyzxRvewl+FOKTtpBzYjW6x6IAYUCZy3sGP40hn+DQkqeluGRCax7qztK2ImL64SA+C7kVWdLI6wvdlStawhyw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+@section Scripts {
+  <script>
+    const isEditor = @Model.IsEditor.ToString().ToLowerInvariant();
+    const isOwner = @Model.IsOwner.ToString().ToLowerInvariant();
+    const articleKey = '@Model.Article.RowKey';
+    let content = @Html.Raw(Model.Article.Content ?? "null");
+    let isSubmitted = @Model.Article.IsSubmitted.ToString().ToLowerInvariant();
+    let isApproved = @Model.Article.IsApproved.ToString().ToLowerInvariant();
+    const blobBaseUrl = '@Html.Raw(Model.BlobBaseUrl)';
+    const sas = '@Html.Raw(Model.BlobSas)';
+    const bannedWords = @Html.Raw(Organisation.Instance.BannedWords is null ? "[]" : Organisation.Instance.BannedWords);
+    let coverPhoto = @Html.Raw($"\"{Model.CoverPhoto}\"" ?? "null");
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js" integrity="sha512-6lplKUSl86rUVprDIjiW8DuOniNX8UDoRATqZSds/7t6zCQZfaCe3e5zcGaQwxa8Kpn5RTM9Fvl3X2lLV4grPQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0-preview.4.23260.4/signalr.min.js" integrity="sha512-yiABJR9EVuPjD1Fhy2xdkNQZG4akO16trbh/6aHoZFaTfrH0VEtxUdyjTtwB3Ki099QIQZ+O4GH43IawL9075w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="/js/shared.js" asp-append-version="true"></script>
+  <script src="/js/article.js" asp-append-version="true"></script>
+}

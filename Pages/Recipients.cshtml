@@ -1,0 +1,14 @@
+﻿@page "/recipients"
+@model RecipientsPageModel
+
+<h2>Recipients</h2>
+
+<p>You currently have @Model.RecipientCount registered recipients.</p>
+<p>Uploading new CSV files will replace all existing recipients.</p>
+<p id="status"><a id="upload">Upload</a></p>
+<input id="files" type="file" multiple accept="text/csv" style="display: none" />
+
+@section Scripts {
+  <script src="/js/shared.js" asp-append-version="true"></script>
+  <script src="/js/recipients.js" asp-append-version="true"></script>
+}
