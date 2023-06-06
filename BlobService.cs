@@ -122,11 +122,13 @@ public class BlobService
 
   public async Task PublishNewsletterAsync(string date, string webHtml, string emailHtml, string emailPlainText) {
     var container = _client.GetBlobContainerClient("$web");
-    var files = new[] { ("index.html", webHtml), ("email.html", emailHtml), ("email.txt", emailPlainText) };
-    foreach (var (fileName, contents) in files) {
+    var files = new[] { ("index.html", webHtml, "text/html"), ("email.html", emailHtml, "text/html"), ("email.txt", emailPlainText, "text/plain") };
+    foreach (var (fileName, contents, contentType) in files)
+    {
       var blob = container.GetBlockBlobClient($"{date}/{fileName}");
       using var stream = new MemoryStream(Encoding.UTF8.GetBytes(contents));
-      await blob.UploadAsync(stream);
+      var options = new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } };
+      await blob.UploadAsync(stream, options);
     }
   }
 
