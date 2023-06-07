@@ -19,8 +19,12 @@ public static class NewsletterFormatter
     var webDocument = await browser.OpenAsync(req => req.Content(document.ToHtml()));
     webDocument.GetElementById("footer").Remove();
     webDocument.GetElementsByTagName("hr").Last().Remove();
-    webDocument.Head.InnerHtml += $"\n  <title>{title}</title>\n  <meta name=\"twitter:card\" content=\"summary_large_image\" />\n" +
-      $"  <meta name=\"twitter:site\" content=\"{Organisation.Instance.TwitterHandle}\" />\n  <meta property=\"og:title\" content=\"{title}\" />\n" +
+    webDocument.Head.InnerHtml +=
+      $"\n  <title>{title}</title>\n" +
+      $"  <meta name=\"description\" content=\"{intro.Replace("\"", "&quot;", StringComparison.OrdinalIgnoreCase)}\" />\n" +
+      $"  <meta name=\"twitter:card\" content=\"summary_large_image\" />\n" +
+      $"  <meta name=\"twitter:site\" content=\"{Organisation.Instance.TwitterHandle}\" />\n" +
+      $"  <meta property=\"og:title\" content=\"{title.Replace("\"", "&quot;", StringComparison.OrdinalIgnoreCase)}\" />\n" +
       $"  <meta property=\"og:type\" content=\"website\" />\n";
     foreach (var comment in webDocument.Descendents<IComment>())
     {

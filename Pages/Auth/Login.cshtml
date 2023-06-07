@@ -3,7 +3,7 @@
   var returnUrl = Request.Query["path"].FirstOrDefault();
 }
 <p style="text-align: center">
-  This secure site is for staff to contribute articles to the newsletter. Please sign in using your organisational Microsoft account.
+  This secure portal is for staff to contribute articles to the newsletter. Please sign in using your Microsoft 365 account.
 </p>
 <p style="text-align: center">
   <a href="/auth/login/challenge@(string.IsNullOrEmpty(returnUrl) ? string.Empty : $"?path={returnUrl}")">Login</a>

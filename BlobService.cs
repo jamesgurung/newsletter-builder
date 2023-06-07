@@ -24,9 +24,13 @@ public class BlobService
   }
 
   public async Task UploadImageAsync(string articleKey, string imageName, Stream stream) {
+    ArgumentNullException.ThrowIfNull(imageName);
     var container = _client.GetBlobContainerClient("photos");
     var blobName = $"{_domain}/{articleKey}/{imageName}";
-    await container.UploadBlobAsync(blobName, stream);
+    var blob = container.GetBlockBlobClient(blobName);
+    var contentType = imageName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ? "image/jpeg" : "image/png";
+    var options = new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } };
+    await blob.UploadAsync(stream, options);
   }
 
   public async Task DeleteImageAsync(string articleKey, string imageName)
@@ -117,7 +121,8 @@ public class BlobService
     list.Insert(0, item);
     var json = JsonSerializer.Serialize(list.OrderByDescending(o => o.Date), new JsonSerializerOptions { WriteIndented = true });
     using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-    await blob.UploadAsync(stream);
+    var options = new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = "application/json" } };
+    await blob.UploadAsync(stream, options);
   }
 
   public async Task PublishNewsletterAsync(string date, string webHtml, string emailHtml, string emailPlainText) {

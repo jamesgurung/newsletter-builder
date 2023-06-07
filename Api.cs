@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using NewsletterBuilder.Entities;
 using NewsletterBuilder.Pages;
-using System.Globalization;
 using System.Text.Json;
 
 namespace NewsletterBuilder;

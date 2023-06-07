@@ -52,7 +52,7 @@ public static class AutomationApi
           (string.IsNullOrEmpty(article.Content) ? string.Empty : "It looks like you have made a start on this article, but it has not yet been submitted.<br /><br />") +
           $"Article: <b>{article.ShortName}</b><br />" +
           $"Deadline: <b>{now.AddDays(reminder.DaysBeforeDeadline):dddd d MMMM}</b><br /><br />" +
-          $"<a href=\"{Organisation.Instance.NewsletterEditorUrl}/{article.RowKey.Replace('_', '/')}\" style=\"text-decoration: none; color: #1188E6\">" +
+          $"<a href=\"{Organisation.Instance.NewsletterEditorUrl}/{article.RowKey.Replace('_', '/')}\" style=\"text-decoration: none; color: #1379CE\">" +
           "<b>Click here to submit your article and photos</b></a><br /><br />" +
           $"Many thanks<br /><br />{Organisation.Instance.Name}<br /></body></html>";
 

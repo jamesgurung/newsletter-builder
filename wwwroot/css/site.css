@@ -83,7 +83,7 @@ li {
 }
 
 a, a:visited {
-  color: #1188E6;
+  color: #1379CE;
   text-decoration: none;
   cursor: pointer;
   user-select: none;
@@ -231,11 +231,11 @@ section:hover .section-menu {
 }
 
 .section-delete:hover {
-  color: #1188E6;
+  color: #1379CE;
 }
 
 section:has(.section-delete:hover) > div:not(.section-menu) {
-  border-color: #1188E6;
+  border-color: #1379CE;
   border-style: dashed;
   border-width: 3px;
 }
@@ -275,7 +275,7 @@ section:has(.section-delete:hover) > div:not(.section-menu) {
 }
 
 #submit, #requestaifeedback {
-  background-color: #1188E6;
+  background-color: #1379CE;
   color: white;
   padding: 8px 16px;
   font-weight: bold;

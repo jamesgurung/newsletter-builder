@@ -13,7 +13,7 @@ fetch('/list.json').then(res => res.json()).then(list => {
         prev.href = '/' + list[i + 1].date;
         prev.textContent = '<< ' + formatDate(list[i + 1].date);
         prev.style.marginRight = 'auto';
-        prev.style.color = '#1188E6';
+        prev.style.color = '#1379CE';
         prev.style.textDecoration = 'none';
         header.appendChild(prev);
       }
@@ -22,7 +22,7 @@ fetch('/list.json').then(res => res.json()).then(list => {
         next.href = '/' + list[i - 1].date;
         next.textContent = formatDate(list[i - 1].date) + ' >>';
         next.style.marginLeft = 'auto';
-        next.style.color = '#1188E6';
+        next.style.color = '#1379CE';
         next.style.textDecoration = 'none';
         header.appendChild(next);
       }

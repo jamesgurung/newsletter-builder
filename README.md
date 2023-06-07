@@ -26,8 +26,9 @@ Here are the steps:
 
 2. Create an Azure CDN endpoint with the static website as its origin, and a custom domain set to `https://<your-newsletter-domain>`. Enable compression. Add the following rules:
     * If request protocol = `HTTP` then URL redirect Found (302), HTTPS 
-    * If URL file extension = `jpg`, `png`, or `pdf` (lowercase) then modify response header: overwrite `Cache-Control` `max-age=604800`, and then cache expiration: override `7` days.
+    * If URL file extension = `jpg`, `png`, `pdf`, `css`, or `js` (lowercase) then modify response header: overwrite `Cache-Control` `max-age=31536000`, and then cache expiration: override `365` days.
     * If URL file extension = `json`, `html`, or `txt` (lowercase) then modify response header: overwrite `Cache-Control` `no-cache`, and then cache expiration: bypass cache.
+    * If URL path does not contain `.` then modify response header: overwrite `Cache-Control` `no-cache`, and then cache expiration: bypass cache.
 
 3. Create an Azure app registration.
     * Name - `Newsletter Builder`
