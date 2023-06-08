@@ -132,7 +132,7 @@ public class BlobService
     {
       var blob = container.GetBlockBlobClient($"{date}/{fileName}");
       using var stream = new MemoryStream(Encoding.UTF8.GetBytes(contents));
-      var options = new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } };
+      var options = new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType + "; charset=UTF-8" } };
       await blob.UploadAsync(stream, options);
     }
   }
