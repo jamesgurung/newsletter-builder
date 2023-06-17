@@ -5,9 +5,8 @@ using System.Globalization;
 
 namespace NewsletterBuilder.Pages;
 
-public class PublishPageModel : PageModel
+public class PublishPageModel(TableServiceClient tableClient) : PageModel
 {
-  private readonly TableServiceClient _tableClient;
   public string NewsletterKey { get; set; }
   public bool IsPublished { get; set; }
   public bool IsSent { get; set; }
@@ -16,17 +15,12 @@ public class PublishPageModel : PageModel
   public bool IsTimeToSend { get; set; }
   public string Description { get; set; }
 
-  public PublishPageModel(TableServiceClient tableClient)
-  {
-    _tableClient = tableClient;
-  }
-
   public async Task<IActionResult> OnGet(string date)
   {
     if (!User.IsInRole(Roles.Editor)) return Forbid();
     NewsletterKey = date;
     var domain = User.GetDomain();
-    var tableService = new TableService(_tableClient, domain);
+    var tableService = new TableService(tableClient, domain);
     var newsletter = await tableService.GetNewsletterAsync(date);
     if (newsletter is null) return NotFound();
     IsTimeToSend = newsletter.IsTimeToSend();

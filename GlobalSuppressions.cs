@@ -6,3 +6,4 @@
 [assembly: SuppressMessage("Design", "CA1056:URI-like properties should not be strings", Justification = "Intentionally string.")]
 [assembly: SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used in DTO classes.")]
 [assembly: SuppressMessage("Usage", "CA2234:Pass system uri objects instead of strings", Justification = "HttpClient uses partial path")]
+[assembly: SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Incorrect compiler warning", Scope = "member", Target = "~M:NewsletterBuilder.ChatGPT.SendGptRequestAsync(System.Collections.Generic.List{NewsletterBuilder.ChatGPTMessage},System.Decimal,System.String)~System.Threading.Tasks.Task{System.String}")]

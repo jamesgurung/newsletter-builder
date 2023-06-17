@@ -9,24 +9,17 @@ using System.Text.Json;
 namespace NewsletterBuilder.Pages;
 
 [Authorize(Roles = Roles.Editor)]
-public class RenderPageModel : PageModel
+public class RenderPageModel(TableServiceClient tableClient) : PageModel
 {
-  private readonly TableServiceClient _tableClient;
-
   public string NewsletterDate { get; set; }
   public IList<CalendarEvent> Events { get; set; }
   public IList<DisplayArticle> Articles { get; set; }
   public string CoverPhoto { get; set; }
 
-  public RenderPageModel(TableServiceClient tableClient)
-  {
-    _tableClient = tableClient;
-  }
-
   public async Task<IActionResult> OnGet(string date)
   {
     var domain = User.GetDomain();
-    var tableService = new TableService(_tableClient, domain);
+    var tableService = new TableService(tableClient, domain);
     var newsletter = await tableService.GetNewsletterAsync(date);
     if (newsletter is null) return NotFound();
     var articles = await tableService.ListArticlesAsync(date);

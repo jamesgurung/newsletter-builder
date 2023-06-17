@@ -9,24 +9,15 @@ using System.Text.Json;
 
 namespace NewsletterBuilder;
 
-public class BlobService
+public class BlobService(BlobServiceClient client, string domain)
 {
-  private readonly BlobServiceClient _client;
-  private readonly string _domain;
-
   private static string _storageAccountKey;
   public static void Configure(string storageAccountKey) => _storageAccountKey = storageAccountKey;
 
-  public BlobService(BlobServiceClient client, string domain)
-  {
-    _client = client;
-    _domain = domain;
-  }
-
   public async Task UploadImageAsync(string articleKey, string imageName, Stream stream) {
     ArgumentNullException.ThrowIfNull(imageName);
-    var container = _client.GetBlobContainerClient("photos");
-    var blobName = $"{_domain}/{articleKey}/{imageName}";
+    var container = client.GetBlobContainerClient("photos");
+    var blobName = $"{domain}/{articleKey}/{imageName}";
     var blob = container.GetBlockBlobClient(blobName);
     var contentType = imageName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ? "image/jpeg" : "image/png";
     var options = new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } };
@@ -35,15 +26,15 @@ public class BlobService
 
   public async Task DeleteImageAsync(string articleKey, string imageName)
   {
-    var container = _client.GetBlobContainerClient("photos");
-    var blobName = $"{_domain}/{articleKey}/{imageName}";
+    var container = client.GetBlobContainerClient("photos");
+    var blobName = $"{domain}/{articleKey}/{imageName}";
     await container.DeleteBlobIfExistsAsync(blobName, DeleteSnapshotsOption.IncludeSnapshots);
   }
 
   public async Task DeleteArticleImagesAsync(string articleKey)
   {
-    var container = _client.GetBlobContainerClient("photos");
-    await foreach (var item in container.GetBlobsByHierarchyAsync(prefix: $"{_domain}/{articleKey}/"))
+    var container = client.GetBlobContainerClient("photos");
+    await foreach (var item in container.GetBlobsByHierarchyAsync(prefix: $"{domain}/{articleKey}/"))
     {
       if (!item.IsBlob) continue;
       await container.DeleteBlobIfExistsAsync(item.Blob.Name, DeleteSnapshotsOption.IncludeSnapshots);
@@ -52,12 +43,12 @@ public class BlobService
 
   public async Task MoveImagesAsync(string oldArticleKey, string newArticleKey)
   {
-    var container = _client.GetBlobContainerClient("photos");
-    await foreach (var item in container.GetBlobsByHierarchyAsync(prefix: $"{_domain}/{oldArticleKey}/")) {
+    var container = client.GetBlobContainerClient("photos");
+    await foreach (var item in container.GetBlobsByHierarchyAsync(prefix: $"{domain}/{oldArticleKey}/")) {
       if (!item.IsBlob) continue;
       var source = container.GetBlockBlobClient(item.Blob.Name);
       var imageName = item.Blob.Name.Split('/').Last();
-      var dest = container.GetBlockBlobClient($"{_domain}/{newArticleKey}/{imageName}");
+      var dest = container.GetBlockBlobClient($"{domain}/{newArticleKey}/{imageName}");
       var resp = await dest.SyncCopyFromUriAsync(source.Uri);
       if (resp.Value.CopyStatus == CopyStatus.Success)
       {
@@ -77,13 +68,13 @@ public class BlobService
       Protocol = SasProtocol.Https
     };
     builder.SetPermissions(BlobSasPermissions.Read);
-    return builder.ToSasQueryParameters(new StorageSharedKeyCredential(_client.AccountName, _storageAccountKey)).ToString();
+    return builder.ToSasQueryParameters(new StorageSharedKeyCredential(client.AccountName, _storageAccountKey)).ToString();
   }
 
   public async Task<bool> ImageExistsAsync(string articleKey, string imageName)
   {
-    var container = _client.GetBlobContainerClient("photos");
-    var blobName = $"{_domain}/{articleKey}/{imageName}";
+    var container = client.GetBlobContainerClient("photos");
+    var blobName = $"{domain}/{articleKey}/{imageName}";
     return await container.GetBlobClient(blobName).ExistsAsync();
   }
 
@@ -92,10 +83,10 @@ public class BlobService
     ArgumentNullException.ThrowIfNull(articleKey);
     ArgumentNullException.ThrowIfNull(imageOrder);
     if (imageOrder.Count == 0) return;
-    var sourceContainer = _client.GetBlobContainerClient("photos");
-    var destContainer = _client.GetBlobContainerClient("$web");
+    var sourceContainer = client.GetBlobContainerClient("photos");
+    var destContainer = client.GetBlobContainerClient("$web");
     var articleKeyParts = articleKey.Split('_');
-    await foreach (var item in sourceContainer.GetBlobsByHierarchyAsync(prefix: $"{_domain}/{articleKey}/"))
+    await foreach (var item in sourceContainer.GetBlobsByHierarchyAsync(prefix: $"{domain}/{articleKey}/"))
     {
       if (!item.IsBlob) continue;
       if (!item.Blob.Name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) &&
@@ -112,7 +103,7 @@ public class BlobService
   }
 
   public async Task AppendToNewsletterListAsync(NewsletterListItem item) {
-    var container = _client.GetBlobContainerClient("$web");
+    var container = client.GetBlobContainerClient("$web");
     var blob = container.GetBlockBlobClient("list.json");
     var response = await blob.DownloadContentAsync();
     var list = JsonSerializer.Deserialize<List<NewsletterListItem>>(response.Value.Content);
@@ -126,7 +117,7 @@ public class BlobService
   }
 
   public async Task PublishNewsletterAsync(string date, string webHtml, string emailHtml, string emailPlainText) {
-    var container = _client.GetBlobContainerClient("$web");
+    var container = client.GetBlobContainerClient("$web");
     var files = new[] { ("index.html", webHtml, "text/html"), ("email.html", emailHtml, "text/html"), ("email.txt", emailPlainText, "text/plain") };
     foreach (var (fileName, contents, contentType) in files)
     {
@@ -138,7 +129,7 @@ public class BlobService
   }
 
   public async Task<string> ReadTextAsync(string date, string fileName) {
-    var container = _client.GetBlobContainerClient("$web");
+    var container = client.GetBlobContainerClient("$web");
     var blob = container.GetBlockBlobClient($"{date}/{fileName}");
     var response = await blob.DownloadContentAsync();
     return response.Value.Content.ToString();

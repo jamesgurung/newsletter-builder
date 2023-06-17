@@ -6,10 +6,8 @@ using NewsletterBuilder.Entities;
 
 namespace NewsletterBuilder.Pages;
 
-public class ArticlePageModel : PageModel
+public class ArticlePageModel(TableServiceClient tableClient, BlobServiceClient blobClient) : PageModel
 {
-  private readonly TableServiceClient _tableClient;
-  private readonly BlobServiceClient _blobClient;
   public Article Article { get; set; }
   public bool IsEditor { get; set; }
   public bool IsOwner { get; set; }
@@ -17,16 +15,10 @@ public class ArticlePageModel : PageModel
   public string BlobSas { get; set; }
   public string CoverPhoto { get; set; }
 
-  public ArticlePageModel(TableServiceClient tableClient, BlobServiceClient blobClient)
-  {
-    _tableClient = tableClient;
-    _blobClient = blobClient;
-  }
-
   public async Task<IActionResult> OnGet(string date, string articleName)
   {
     var domain = User.GetDomain();
-    var tableService = new TableService(_tableClient, domain);
+    var tableService = new TableService(tableClient, domain);
     var key = $"{date}_{articleName}";
     Article = await tableService.GetArticleAsync(key);
     if (Article is null) return NotFound();
@@ -38,8 +30,8 @@ public class ArticlePageModel : PageModel
     var newsletter = await tableService.GetNewsletterAsync(Article.Date);
     CoverPhoto = newsletter.CoverPhoto;
 
-    var blobService = new BlobService(_blobClient, domain);
-    BlobBaseUrl = $"{_blobClient.Uri}photos/";
+    var blobService = new BlobService(blobClient, domain);
+    BlobBaseUrl = $"{blobClient.Uri}photos/";
     BlobSas = blobService.GetSasQueryString();
     
     return Page();

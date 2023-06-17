@@ -5,19 +5,8 @@ using System.Text.Json.Serialization;
 
 namespace NewsletterBuilder;
 
-public class ChatGPT
+public class ChatGPT(HttpClient client, IHubClients<IChatClient> hub, string chatId)
 {
-  private readonly HttpClient _client;
-  private readonly IHubClients<IChatClient> _hub;
-  private readonly string _chatId;
-
-  public ChatGPT(HttpClient client, IHubClients<IChatClient> hub, string chatId)
-  {
-    _client = client;
-    _hub = hub;
-    _chatId = chatId;
-  }
-
   public async Task<string> RequestArticleFeedbackAsync(string headline, string text, string identifier)
   {
 
@@ -72,7 +61,7 @@ public class ChatGPT
     {
       using var body = JsonContent.Create(request);
       using var message = new HttpRequestMessage(HttpMethod.Post, string.Empty) { Content = body };
-      using var response = await _client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead);
+      using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead);
       if (!response.IsSuccessStatusCode)
       {
         await Task.Delay(1000 * (int)Math.Pow(2, attempt));
@@ -89,7 +78,7 @@ public class ChatGPT
         var chunk = JsonSerializer.Deserialize<ChatGPTResponse>(line[6..]);
         if (chunk?.Value is null) continue;
         content.Append(chunk.Value);
-        await _hub.Client(_chatId).Type(chunk.Value);
+        await hub.Client(chatId).Type(chunk.Value);
       }
       return content.ToString();
     }
