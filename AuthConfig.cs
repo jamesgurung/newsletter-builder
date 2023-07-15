@@ -1,5 +1,4 @@
-﻿using Azure.Data.Tables;
-using Microsoft.AspNetCore.Authentication;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -43,8 +42,7 @@ public static class AuthConfig
           {
             var email = context.Principal.Claims.FirstOrDefault(c => c.Type == "preferred_username").Value.ToLowerInvariant();
             var emailParts = email.Split('@');
-            var client = context.HttpContext.RequestServices.GetService<TableServiceClient>();
-            var service = new TableService(client, emailParts[1]);
+            var service = new TableService(emailParts[1]);
             var user = await service.GetUserAsync(emailParts[0]);
             if (user is null)
             {

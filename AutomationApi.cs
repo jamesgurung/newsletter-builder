@@ -1,5 +1,4 @@
-﻿using Azure.Data.Tables;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
 
@@ -17,7 +16,7 @@ public static class AutomationApi
     var group = app.MapGroup("/api/automate");
 
     group.MapPost("/emailreminders/{domain}/{n:int}", [AllowAnonymous]
-    async (string domain, int n, [FromHeader(Name = "X-Api-Key")] string auth, TableServiceClient client, IWebHostEnvironment env) =>
+    async (string domain, int n, [FromHeader(Name = "X-Api-Key")] string auth, IWebHostEnvironment env) =>
     {
       if (auth != _automationApiKey) return Results.Unauthorized();
       if (string.IsNullOrEmpty(domain)) return Results.BadRequest("Domain required.");
@@ -30,7 +29,7 @@ public static class AutomationApi
 
       var newsletterDeadline = now.AddDays(reminder.DaysBeforeDeadline).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-      var service = new TableService(client, domain);
+      var service = new TableService(domain);
       var newsletter = (await service.ListNewslettersAsync()).SingleOrDefault(o => o.Deadline == newsletterDeadline);
       if (newsletter is null) return Results.NoContent();
       var articles = (await service.ListArticlesAsync(newsletter.RowKey)).Where(o => !o.IsSubmitted && o.ShortName != "intro").ToList();

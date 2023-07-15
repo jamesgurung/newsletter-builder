@@ -1,12 +1,10 @@
-using Azure.Data.Tables;
-using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using NewsletterBuilder.Entities;
 
 namespace NewsletterBuilder.Pages;
 
-public class ArticlePageModel(TableServiceClient tableClient, BlobServiceClient blobClient) : PageModel
+public class ArticlePageModel() : PageModel
 {
   public Article Article { get; set; }
   public bool IsEditor { get; set; }
@@ -18,7 +16,7 @@ public class ArticlePageModel(TableServiceClient tableClient, BlobServiceClient 
   public async Task<IActionResult> OnGet(string date, string articleName)
   {
     var domain = User.GetDomain();
-    var tableService = new TableService(tableClient, domain);
+    var tableService = new TableService(domain);
     var key = $"{date}_{articleName}";
     Article = await tableService.GetArticleAsync(key);
     if (Article is null) return NotFound();
@@ -30,8 +28,8 @@ public class ArticlePageModel(TableServiceClient tableClient, BlobServiceClient 
     var newsletter = await tableService.GetNewsletterAsync(Article.Date);
     CoverPhoto = newsletter.CoverPhoto;
 
-    var blobService = new BlobService(blobClient, domain);
-    BlobBaseUrl = $"{blobClient.Uri}photos/";
+    var blobService = new BlobService(domain);
+    BlobBaseUrl = $"{BlobService.Uri}photos/";
     BlobSas = blobService.GetSasQueryString();
     
     return Page();

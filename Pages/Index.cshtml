@@ -1,7 +1,6 @@
 ﻿@page
-@inject TableServiceClient client
 @{
-  var service = new TableService(client, User.GetDomain());
+  var service = new TableService(User.GetDomain());
   var events = await service.ListEventsAsync();
   var newsletters = await service.ListNewslettersAsync();
   var articles = await service.ListArticlesAsync();

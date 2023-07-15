@@ -1,4 +1,3 @@
-using Azure.Data.Tables;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -9,7 +8,7 @@ using System.Text.Json;
 namespace NewsletterBuilder.Pages;
 
 [Authorize(Roles = Roles.Editor)]
-public class RenderPageModel(TableServiceClient tableClient) : PageModel
+public class RenderPageModel() : PageModel
 {
   public string NewsletterDate { get; set; }
   public IList<CalendarEvent> Events { get; set; }
@@ -19,7 +18,7 @@ public class RenderPageModel(TableServiceClient tableClient) : PageModel
   public async Task<IActionResult> OnGet(string date)
   {
     var domain = User.GetDomain();
-    var tableService = new TableService(tableClient, domain);
+    var tableService = new TableService(domain);
     var newsletter = await tableService.GetNewsletterAsync(date);
     if (newsletter is null) return NotFound();
     var articles = await tableService.ListArticlesAsync(date);

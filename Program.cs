@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.Extensions.Azure;
 using NewsletterBuilder;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,15 +10,11 @@ builder.Services.Configure<FormOptions>(options =>
 
 var storageAccountName = builder.Configuration["Azure:StorageAccountName"];
 var storageAccountKey = builder.Configuration["Azure:StorageAccountKey"];
-builder.Services.AddAzureClients(clientBuilder =>
-{
-  var connectionString = $"DefaultEndpointsProtocol=https;AccountName={storageAccountName};AccountKey={storageAccountKey};EndpointSuffix=core.windows.net";
-  clientBuilder.AddTableServiceClient(connectionString);
-  clientBuilder.AddBlobServiceClient(connectionString);
-});
+var connectionString = $"DefaultEndpointsProtocol=https;AccountName={storageAccountName};AccountKey={storageAccountKey};EndpointSuffix=core.windows.net";
+TableService.Configure(connectionString);
+BlobService.Configure(connectionString, storageAccountKey);
 
 Organisation.Instance = builder.Configuration.GetSection("Organisation").Get<Organisation>();
-BlobService.Configure(storageAccountKey);
 AutomationApi.Configure(builder.Configuration["AutomationApiKey"]);
 Mailer.Configure(builder.Configuration["PostmarkServerToken"], Organisation.Instance.FromEmail, Organisation.Instance.ReminderReplyTo,
   builder.Environment.IsDevelopment());
@@ -45,7 +40,11 @@ if (!app.Environment.IsDevelopment())
   var domain = Organisation.Instance.NewsletterEditorUrl.Replace("https://", string.Empty, StringComparison.OrdinalIgnoreCase);
   app.Use(async (context, next) =>
   {
-    if (!context.Request.Host.Host.Equals(domain, StringComparison.OrdinalIgnoreCase))
+    if (context.Request.Path.Value == "/" && context.Request.Headers.UserAgent.ToString().Equals("alwayson", StringComparison.OrdinalIgnoreCase))
+    {
+      context.Response.StatusCode = 200;
+    }
+    else if (!context.Request.Host.Host.Equals(domain, StringComparison.OrdinalIgnoreCase))
     {
       context.Response.Redirect($"https://{domain}{context.Request.Path.Value}{context.Request.QueryString}", true);
     }

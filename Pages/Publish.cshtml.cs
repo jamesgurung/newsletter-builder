@@ -1,11 +1,10 @@
-using Azure.Data.Tables;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Globalization;
 
 namespace NewsletterBuilder.Pages;
 
-public class PublishPageModel(TableServiceClient tableClient) : PageModel
+public class PublishPageModel() : PageModel
 {
   public string NewsletterKey { get; set; }
   public bool IsPublished { get; set; }
@@ -20,7 +19,7 @@ public class PublishPageModel(TableServiceClient tableClient) : PageModel
     if (!User.IsInRole(Roles.Editor)) return Forbid();
     NewsletterKey = date;
     var domain = User.GetDomain();
-    var tableService = new TableService(tableClient, domain);
+    var tableService = new TableService(domain);
     var newsletter = await tableService.GetNewsletterAsync(date);
     if (newsletter is null) return NotFound();
     IsTimeToSend = newsletter.IsTimeToSend();

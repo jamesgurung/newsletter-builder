@@ -1,6 +1,4 @@
 ﻿using Azure;
-using Azure.Data.Tables;
-using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,14 +13,14 @@ public static class Api
 {
   public static void MapApiPaths(this WebApplication app)
   {
-    app.MapGet("/api/newsletters/{key}/images", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context, TableServiceClient tableClient, BlobServiceClient blobClient) =>
+    app.MapGet("/api/newsletters/{key}/images", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var tableService = new TableService(tableClient, domain);
+      var tableService = new TableService(domain);
       var articles = await tableService.ListArticlesAsync(key);
       if (articles.Count == 0) return Results.NotFound("Newsletter not found.");
 
-      var blobService = new BlobService(blobClient, domain);
+      var blobService = new BlobService(domain);
       var sas = blobService.GetSasQueryString();
 
       var articleContents = articles.Where(o => o.Content is not null)
@@ -32,7 +30,7 @@ public static class Api
         RenderPageModel.AddImageRenderNames(article.Name, article.Content.Sections);
       }
 
-      var blobBaseUrl = $"{blobClient.Uri}photos/{domain}";
+      var blobBaseUrl = $"{BlobService.Uri}photos/{domain}";
 
       return Results.Ok(articleContents.SelectMany(a => a.Content.Sections.Select(s => new { Key = a.Name, Section = s })
       .Where(o => o.Section.Image is not null).Select(o => new ArticleImageData {
@@ -43,7 +41,7 @@ public static class Api
 
     var group = app.MapGroup("/api").ValidateAntiforgery();
 
-    group.MapPost("/users", [Authorize(Roles = Roles.Editor)] async (User user, HttpContext context, TableServiceClient client) =>
+    group.MapPost("/users", [Authorize(Roles = Roles.Editor)] async (User user, HttpContext context) =>
     {
       user.RowKey = user.RowKey?.Trim().ToLowerInvariant();
       user.DisplayName = user.DisplayName?.Trim();
@@ -54,7 +52,7 @@ public static class Api
       var domain = context.User.GetDomain();
       user.PartitionKey = domain;
       user.IsEditor = false;
-      var service = new TableService(client, domain);
+      var service = new TableService(domain);
       try
       {
         await service.CreateUserAsync(user);
@@ -66,15 +64,15 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapDelete("/users/{username}", [Authorize(Roles = Roles.Editor)] async (string username, HttpContext context, TableServiceClient client) =>
+    group.MapDelete("/users/{username}", [Authorize(Roles = Roles.Editor)] async (string username, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var service = new TableService(client, domain);
+      var service = new TableService(domain);
       await service.DeleteUserAsync(username);
       return Results.Ok();
     });
 
-    group.MapPost("/events", async (CalendarEvent ev, HttpContext context, TableServiceClient client) =>
+    group.MapPost("/events", async (CalendarEvent ev, HttpContext context) =>
     {
       if (ev.RowKey is null) return Results.BadRequest("Invalid event key.");
       ev.RowKey = ev.RowKey?.Trim();
@@ -87,7 +85,7 @@ public static class Api
       ev.PartitionKey = domain;
       ev.Owner = context.User.GetUsername();
       ev.IsApproved = context.User.IsInRole(Roles.Editor);
-      var service = new TableService(client, domain);
+      var service = new TableService(domain);
       try
       {
         await service.CreateEventAsync(ev);
@@ -99,18 +97,18 @@ public static class Api
       return Results.Ok(ev);
     });
 
-    group.MapPost("/events/{key}/approve", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context, TableServiceClient client) =>
+    group.MapPost("/events/{key}/approve", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var service = new TableService(client, domain);
+      var service = new TableService(domain);
       await service.ApproveEventAsync(key);
       return Results.Ok();
     });
 
-    group.MapDelete("/events/{key}", async (string key, HttpContext context, TableServiceClient client) =>
+    group.MapDelete("/events/{key}", async (string key, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var service = new TableService(client, domain);
+      var service = new TableService(domain);
       if (context.User.GetRole() != Roles.Editor)
       {
         var ev = await service.GetEventAsync(key);
@@ -123,13 +121,13 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapPost("/newsletters", [Authorize(Roles = Roles.Editor)] async (Newsletter newsletter, HttpContext context, TableServiceClient client) =>
+    group.MapPost("/newsletters", [Authorize(Roles = Roles.Editor)] async (Newsletter newsletter, HttpContext context) =>
     {
       if (!DateOnly.TryParseExact(newsletter.RowKey, "yyyy-MM-dd", out _)) return Results.BadRequest("Invalid newsletter date.");
       if (!DateOnly.TryParseExact(newsletter.Deadline, "yyyy-MM-dd", out _)) return Results.BadRequest("Invalid deadline.");
       var domain = context.User.GetDomain();
       newsletter.PartitionKey = domain;
-      var service = new TableService(client, domain);
+      var service = new TableService(domain);
       try
       {
         await service.CreateNewsletterAsync(newsletter);
@@ -143,10 +141,10 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapDelete("/newsletters/{key}", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context, TableServiceClient client) =>
+    group.MapDelete("/newsletters/{key}", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var service = new TableService(client, domain);
+      var service = new TableService(domain);
       var articles = await service.ListArticlesAsync(key);
       if (articles.Count > 1) return Results.Conflict("Cannot delete newsletter which contains articles.");
       await service.DeleteArticleAsync($"{key}_intro");
@@ -154,7 +152,7 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapPost("/articles", async (Article article, HttpContext context, TableServiceClient client) =>
+    group.MapPost("/articles", async (Article article, HttpContext context) =>
     {
       article.RowKey = article.RowKey?.Trim().ToLowerInvariant();
       if (string.IsNullOrEmpty(article.RowKey)) return Results.BadRequest("Invalid article key.");
@@ -163,7 +161,7 @@ public static class Api
       article.PartitionKey = domain;
       article.Owner = context.User.GetUsername();
       article.IsSubmitted = false;
-      var service = new TableService(client, domain);
+      var service = new TableService(domain);
       if (context.User.IsInRole(Roles.Editor))
       {
         if (string.IsNullOrWhiteSpace(article.Contributors)) return Results.BadRequest("Contributors required.");
@@ -194,10 +192,10 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapDelete("/articles/{key}", async (string key, [FromQuery] string order, HttpContext context, TableServiceClient tableClient, BlobServiceClient blobClient) =>
+    group.MapDelete("/articles/{key}", async (string key, [FromQuery] string order, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var tableService = new TableService(tableClient, domain);
+      var tableService = new TableService(domain);
       if (context.User.GetRole() != Roles.Editor)
       {
         var article = await tableService.GetArticleAsync(key);
@@ -215,15 +213,15 @@ public static class Api
       newsletter.LastPublished = null;
       await tableService.UpdateNewsletterAsync(newsletter);
       
-      var blobService = new BlobService(blobClient, domain);
+      var blobService = new BlobService(domain);
       await blobService.DeleteArticleImagesAsync(key);
       return Results.Ok();
     });
 
-    group.MapPut("/newsletters/{key}/order", [Authorize(Roles = Roles.Editor)] async (string key, ArticleOrderData orderData, HttpContext context, TableServiceClient client) =>
+    group.MapPut("/newsletters/{key}/order", [Authorize(Roles = Roles.Editor)] async (string key, ArticleOrderData orderData, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var tableService = new TableService(client, domain);
+      var tableService = new TableService(domain);
       if (!await ValidateOrderAsync(tableService, key, orderData.Order)) return Results.BadRequest("Invalid article order.");
 
       var newsletter = await tableService.GetNewsletterAsync(key);
@@ -234,13 +232,13 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapPut("/newsletters/{key}/coverphoto", [Authorize(Roles = Roles.Editor)] async (string key, CoverPhotoData coverPhotoData, HttpContext context, BlobServiceClient blobClient, TableServiceClient tableClient) =>
+    group.MapPut("/newsletters/{key}/coverphoto", [Authorize(Roles = Roles.Editor)] async (string key, CoverPhotoData coverPhotoData, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var tableService = new TableService(tableClient, domain);
+      var tableService = new TableService(domain);
       var newsletter = await tableService.GetNewsletterAsync(key);
       if (newsletter is null) return Results.NotFound("Newsletter not found.");
-      var blobService = new BlobService(blobClient, domain);
+      var blobService = new BlobService(domain);
       if (!await blobService.ImageExistsAsync(coverPhotoData.ArticleKey, coverPhotoData.ImageName)) return Results.BadRequest("Invalid image.");
       newsletter.CoverPhoto = coverPhotoData.ImageName;
       newsletter.LastPublished = null;
@@ -248,10 +246,10 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapPost("/articles/{key}/move", [Authorize(Roles = Roles.Editor)] async (string key, ArticleMoveData moveData, HttpContext context, TableServiceClient tableClient, BlobServiceClient blobClient) =>
+    group.MapPost("/articles/{key}/move", [Authorize(Roles = Roles.Editor)] async (string key, ArticleMoveData moveData, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var tableService = new TableService(tableClient, domain);
+      var tableService = new TableService(domain);
       var article = await tableService.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       var source = await tableService.GetNewsletterAsync(key[..10]);
@@ -268,16 +266,16 @@ public static class Api
       dest.LastPublished = null;
       await tableService.MoveArticleAsync(key, article, source, dest);
       
-      var blobService = new BlobService(blobClient, domain);
+      var blobService = new BlobService(domain);
       await blobService.MoveImagesAsync(key, article.RowKey);
       return Results.Ok();
     });
 
-    group.MapPut("/articles/{key}/content", async (string key, ArticleContentData contentData, HttpContext context, TableServiceClient client) =>
+    group.MapPut("/articles/{key}/content", async (string key, ArticleContentData contentData, HttpContext context) =>
     {
       if (contentData?.Sections is null) return Results.BadRequest("No content submitted.");
       var domain = context.User.GetDomain();
-      var service = new TableService(client, domain);
+      var service = new TableService(domain);
       var article = await service.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (!context.User.IsInRole(Roles.Editor) && (!article.ContributorList.Contains(context.User.GetUsername()) || article.IsSubmitted)) return Results.Forbid();
@@ -287,38 +285,38 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapPost("/articles/{key}/image", async (string key, [FromForm] IFormFile image, HttpContext context, BlobServiceClient blobClient, TableServiceClient tableClient) =>
+    group.MapPost("/articles/{key}/image", async (string key, [FromForm] IFormFile image, HttpContext context) =>
     {
       if (image is null || image.Length == 0) return Results.BadRequest("No image submitted.");
       if (image.ContentType != "image/jpeg" && image.ContentType != "image/png") return Results.BadRequest("Only JPG and PNG images are supported.");
       var domain = context.User.GetDomain();
-      var tableService = new TableService(tableClient, domain);
+      var tableService = new TableService(domain);
       var article = await tableService.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (!context.User.IsInRole(Roles.Editor) && (!article.ContributorList.Contains(context.User.GetUsername()) || article.IsSubmitted)) return Results.Forbid();
-      var blobService = new BlobService(blobClient, domain);
+      var blobService = new BlobService(domain);
       using var imageStream = image.OpenReadStream();
       var imageName = Guid.NewGuid().ToString() + (image.ContentType == "image/jpeg" ? ".jpg" : ".png");
       await blobService.UploadImageAsync(key, imageName, imageStream);
       return Results.Ok(imageName);
     });
 
-    group.MapDelete("/articles/{key}/image/{imageName}", async (string key, string imageName, HttpContext context, BlobServiceClient blobClient, TableServiceClient tableClient) =>
+    group.MapDelete("/articles/{key}/image/{imageName}", async (string key, string imageName, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var tableService = new TableService(tableClient, domain);
+      var tableService = new TableService(domain);
       var article = await tableService.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (!context.User.IsInRole(Roles.Editor) && (!article.ContributorList.Contains(context.User.GetUsername()) || article.IsSubmitted)) return Results.Forbid();
-      var blobService = new BlobService(blobClient, domain);
+      var blobService = new BlobService(domain);
       await blobService.DeleteImageAsync(key, imageName);
       return Results.Ok();
     });
 
-    group.MapPost("/articles/{key}/submit", async (string key, HttpContext context, TableServiceClient client) =>
+    group.MapPost("/articles/{key}/submit", async (string key, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var service = new TableService(client, domain);
+      var service = new TableService(domain);
       var article = await service.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (!article.ContributorList.Contains(context.User.GetUsername()) && !context.User.IsInRole(Roles.Editor)) return Results.Forbid();
@@ -327,10 +325,10 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapPost("/articles/{key}/unsubmit", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context, TableServiceClient client) =>
+    group.MapPost("/articles/{key}/unsubmit", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var service = new TableService(client, domain);
+      var service = new TableService(domain);
       var article = await service.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       article.IsSubmitted = false;
@@ -338,10 +336,10 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapPost("/articles/{key}/approve", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context, TableServiceClient tableClient, BlobServiceClient blobClient) =>
+    group.MapPost("/articles/{key}/approve", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var tableService = new TableService(tableClient, domain);
+      var tableService = new TableService(domain);
       var article = await tableService.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (article.Content is null) return Results.BadRequest("Article content is missing.");
@@ -349,15 +347,15 @@ public static class Api
       article.IsApproved = true;
       await tableService.UpdateArticleAsync(article);
       var imageOrder = JsonSerializer.Deserialize<ArticleContentData>(article.Content).Sections.Where(o => !string.IsNullOrEmpty(o.Image)).Select(o => o.Image).ToList();
-      var blobService = new BlobService(blobClient, domain);
+      var blobService = new BlobService(domain);
       await blobService.PublishImagesAsync(key, imageOrder);
       return Results.Ok();
     });
 
-    group.MapPost("/articles/{key}/unapprove", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context, TableServiceClient client) =>
+    group.MapPost("/articles/{key}/unapprove", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var service = new TableService(client, domain);
+      var service = new TableService(domain);
       var article = await service.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       article.IsApproved = false;
@@ -372,30 +370,30 @@ public static class Api
       return Results.Ok(response);
     });
 
-    group.MapPost("/recipients", [Authorize(Roles = Roles.Editor)] async (RecipientData recipientsData, TableServiceClient client, HttpContext context) =>
+    group.MapPost("/recipients", [Authorize(Roles = Roles.Editor)] async (RecipientData recipientsData, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
-      var service = new TableService(client, domain);
+      var service = new TableService(domain);
       var suppressed = await Mailer.GetSuppressedRecipientsAsync();
       var recipients = recipientsData.Recipients.Where(o => !suppressed.Contains(o)).ToList();
       await service.ReplaceRecipientsAsync(recipients);
       return Results.Ok();
     });
 
-    group.MapPost("/newsletters/{key}/publish", [Authorize(Roles = Roles.Editor)] async (string key, PublishData publishData, TableServiceClient tableClient, BlobServiceClient blobClient, HttpContext context) =>
+    group.MapPost("/newsletters/{key}/publish", [Authorize(Roles = Roles.Editor)] async (string key, PublishData publishData, HttpContext context) =>
     {
       if (string.IsNullOrEmpty(key)) return Results.BadRequest("Missing newsletter key.");
       if (string.IsNullOrEmpty(publishData?.Html)) return Results.BadRequest("Missing HTML content.");
       if (string.IsNullOrEmpty(publishData?.Description)) return Results.BadRequest("Missing newsletter description.");
       var domain = context.User.GetDomain();
-      var tableService = new TableService(tableClient, domain);
+      var tableService = new TableService(domain);
       var newsletter = await tableService.GetNewsletterAsync(key);
       if (newsletter is null) return Results.NotFound("Newsletter not found.");
       if (string.IsNullOrEmpty(newsletter.CoverPhoto)) return Results.BadRequest("Missing cover photo.");
       var articles = await tableService.ListArticlesAsync(key);
       if (articles.Any(o => !o.IsApproved)) return Results.BadRequest("Not all articles are approved.");
       var formats = await NewsletterFormatter.FormatAsync(publishData.Html);
-      var blobService = new BlobService(blobClient, domain);
+      var blobService = new BlobService(domain);
       await blobService.PublishNewsletterAsync(key, formats.WebHtml, formats.EmailHtml, formats.EmailPlainText);
       await blobService.AppendToNewsletterListAsync(new() { Date = key, Description = publishData.Description });
       newsletter.Description = publishData.Description;
@@ -404,12 +402,12 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapPost("/newsletters/{key}/send", [Authorize(Roles = Roles.Editor)] async (string key, SendData sendData, TableServiceClient tableClient,
-      BlobServiceClient blobClient, HttpContext context, IHubContext <ChatHub, IChatClient> hubContext) =>
+    group.MapPost("/newsletters/{key}/send", [Authorize(Roles = Roles.Editor)] async (string key, SendData sendData, HttpContext context,
+      IHubContext <ChatHub, IChatClient> hubContext) =>
     {
       if (string.IsNullOrEmpty(key)) return Results.BadRequest("Missing newsletter key.");
       var domain = context.User.GetDomain();
-      var tableService = new TableService(tableClient, domain);
+      var tableService = new TableService(domain);
       var newsletter = await tableService.GetNewsletterAsync(key);
       if (newsletter is null) return Results.NotFound("Newsletter not found.");
       if (newsletter.LastPublished is null) return Results.BadRequest("Newsletter has not been published.");
@@ -418,7 +416,7 @@ public static class Api
       var introContent = JsonSerializer.Deserialize<ArticleContentData>(articles.Single(o => o.ShortName == "intro").Content);
       var title = introContent.Headline;
 
-      var blobService = new BlobService(blobClient, domain);
+      var blobService = new BlobService(domain);
       string html = await blobService.ReadTextAsync(key, "email.html");
       string plainText = await blobService.ReadTextAsync(key, "email.txt");
       var mailer = new Mailer();

@@ -9,10 +9,19 @@ using System.Text.Json;
 
 namespace NewsletterBuilder;
 
-public class BlobService(BlobServiceClient client, string domain)
+public class BlobService(string domain)
 {
-  private static string _storageAccountKey;
-  public static void Configure(string storageAccountKey) => _storageAccountKey = storageAccountKey;
+  public static void Configure(string connectionString, string accountKey)
+  {
+    client = new BlobServiceClient(connectionString);
+    storageAccountKey = accountKey;
+    Uri = client.Uri.ToString();
+  }
+
+  public static string Uri { get; private set; }
+
+  private static BlobServiceClient client;
+  private static string storageAccountKey;
 
   public async Task UploadImageAsync(string articleKey, string imageName, Stream stream) {
     ArgumentNullException.ThrowIfNull(imageName);
@@ -68,7 +77,7 @@ public class BlobService(BlobServiceClient client, string domain)
       Protocol = SasProtocol.Https
     };
     builder.SetPermissions(BlobSasPermissions.Read);
-    return builder.ToSasQueryParameters(new StorageSharedKeyCredential(client.AccountName, _storageAccountKey)).ToString();
+    return builder.ToSasQueryParameters(new StorageSharedKeyCredential(client.AccountName, storageAccountKey)).ToString();
   }
 
   public async Task<bool> ImageExistsAsync(string articleKey, string imageName)

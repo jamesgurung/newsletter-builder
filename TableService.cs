@@ -5,8 +5,14 @@ using System.Globalization;
 
 namespace NewsletterBuilder;
 
-public class TableService(TableServiceClient client, string domain)
+public class TableService(string domain)
 {
+  public static void Configure(string connectionString)
+  {
+    client = new TableServiceClient(connectionString);
+  }
+
+  private static TableServiceClient client;
   private static readonly string[] selectPartitionKey = new[] { "PartitionKey" };
   private static readonly string[] selectRowKey = new[] { "RowKey" };
 
