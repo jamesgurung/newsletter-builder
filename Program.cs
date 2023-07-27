@@ -36,12 +36,12 @@ var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
-  app.UseHsts();
   var domain = Organisation.Instance.NewsletterEditorUrl.Replace("https://", string.Empty, StringComparison.OrdinalIgnoreCase);
   app.Use(async (context, next) =>
   {
     if (context.Request.Path.Value == "/" && context.Request.Headers.UserAgent.ToString().Equals("alwayson", StringComparison.OrdinalIgnoreCase))
     {
+      await TableService.WarmUpAsync();
       context.Response.StatusCode = 200;
     }
     else if (!context.Request.Host.Host.Equals(domain, StringComparison.OrdinalIgnoreCase))
@@ -53,6 +53,7 @@ if (!app.Environment.IsDevelopment())
       await next();
     }
   });
+  app.UseHsts();
 }
 
 app.UseResponseCompression();

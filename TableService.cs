@@ -16,6 +16,20 @@ public class TableService(string domain)
   private static readonly string[] selectPartitionKey = new[] { "PartitionKey" };
   private static readonly string[] selectRowKey = new[] { "RowKey" };
 
+  // Reduces cold start latency by several seconds
+  public static async Task WarmUpAsync() {
+    var nonExistentKey = "warmup";
+    var tasks = new[]
+    {
+      client.GetTableClient("newsletters").QueryAsync<TableEntity>(o => o.PartitionKey == nonExistentKey).ToListAsync(),
+      client.GetTableClient("articles").QueryAsync<TableEntity>(o => o.PartitionKey == nonExistentKey).ToListAsync(),
+      client.GetTableClient("events").QueryAsync<TableEntity>(o => o.PartitionKey == nonExistentKey).ToListAsync(),
+      client.GetTableClient("users").QueryAsync<TableEntity>(o => o.PartitionKey == nonExistentKey).ToListAsync(),
+      client.GetTableClient("recipients").QueryAsync<TableEntity>(o => o.PartitionKey == nonExistentKey).ToListAsync()
+    };
+    await Task.WhenAll(tasks);
+  }
+
   public async Task<User> GetUserAsync(string username)
   {
     var table = client.GetTableClient("users");
