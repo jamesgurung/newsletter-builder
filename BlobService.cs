@@ -58,7 +58,7 @@ public class BlobService(string domain)
       var source = container.GetBlockBlobClient(item.Blob.Name);
       var imageName = item.Blob.Name.Split('/').Last();
       var dest = container.GetBlockBlobClient($"{domain}/{newArticleKey}/{imageName}");
-      var resp = await dest.SyncCopyFromUriAsync(source.Uri);
+      var resp = await dest.SyncCopyFromUriAsync(new Uri($"{source.Uri}?{GetSasQueryString()}"));
       if (resp.Value.CopyStatus == CopyStatus.Success)
       {
         await source.DeleteAsync();
