@@ -62,6 +62,7 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
 
 app.MapHub<ChatHub>("/chat");
 app.MapRazorPages();
