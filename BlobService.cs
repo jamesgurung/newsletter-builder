@@ -22,6 +22,7 @@ public class BlobService(string domain)
 
   private static BlobServiceClient client;
   private static string storageAccountKey;
+  private static readonly JsonSerializerOptions jsonOptions = new() { WriteIndented = true };
 
   public async Task UploadImageAsync(string articleKey, string imageName, Stream stream) {
     ArgumentNullException.ThrowIfNull(imageName);
@@ -119,7 +120,7 @@ public class BlobService(string domain)
     var existing = list.FirstOrDefault(x => x.Date == item.Date);
     if (existing is not null) list.Remove(existing);
     list.Insert(0, item);
-    var json = JsonSerializer.Serialize(list.OrderByDescending(o => o.Date), new JsonSerializerOptions { WriteIndented = true });
+    var json = JsonSerializer.Serialize(list.OrderByDescending(o => o.Date), jsonOptions);
     using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
     var options = new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = "application/json" } };
     await blob.UploadAsync(stream, options);

@@ -285,19 +285,19 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapPost("/articles/{key}/image", async (string key, [FromForm] IFormFile image, HttpContext context) =>
+    group.MapPost("/articles/{key}/image", async (string key, HttpContext context) =>
     {
-      if (image is null || image.Length == 0) return Results.BadRequest("No image submitted.");
-      if (image.ContentType != "image/jpeg" && image.ContentType != "image/png") return Results.BadRequest("Only JPG and PNG images are supported.");
+      if (context.Request.ContentLength == 0) return Results.BadRequest("No image submitted.");
+      var contentType = context.Request.ContentType;
+      if (contentType != "image/jpeg" && contentType != "image/png") return Results.BadRequest("Only JPG and PNG images are supported.");
       var domain = context.User.GetDomain();
       var tableService = new TableService(domain);
       var article = await tableService.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (!context.User.IsInRole(Roles.Editor) && (!article.ContributorList.Contains(context.User.GetUsername()) || article.IsSubmitted)) return Results.Forbid();
       var blobService = new BlobService(domain);
-      using var imageStream = image.OpenReadStream();
-      var imageName = Guid.NewGuid().ToString() + (image.ContentType == "image/jpeg" ? ".jpg" : ".png");
-      await blobService.UploadImageAsync(key, imageName, imageStream);
+      var imageName = Guid.NewGuid().ToString() + (contentType == "image/jpeg" ? ".jpg" : ".png");
+      await blobService.UploadImageAsync(key, imageName, context.Request.Body);
       return Results.Ok(imageName);
     });
 

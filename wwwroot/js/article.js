@@ -338,23 +338,21 @@ document.getElementById('image-upload').addEventListener('click', async () => {
   const canvas = cropper.getCroppedCanvas({ width: 1120, height: 630 });
   const type = currentImageInputElement.files[0].type;
   const blob = await new Promise(resolve => canvas.toBlob(resolve, type, 0.9));
-  cropper.destroy();
   const editor = document.getElementById('image-editor');
   editor.style.display = 'none';
   editor.style.opacity = 0;
   await uploadImage(blob, type);
+  cropper.destroy();
 });
 
 document.getElementById('rotate-left').addEventListener('click', () => { cropper.clear(); cropper.rotate(-90); cropper.crop(); });
 document.getElementById('rotate-right').addEventListener('click', () => { cropper.clear(); cropper.rotate(90); cropper.crop(); });
 
 async function uploadImage(blob, type) {
-  const formData = new FormData();
-  formData.append('image', blob, 'image' + (type === 'image/jpeg' ? '.jpg' : '.png'));
   const resp = await fetch(`/api/articles/${articleKey}/image`, {
     method: 'POST',
-    headers: { 'X-XSRF-TOKEN': antiforgeryToken },
-    body: formData
+    headers: { 'X-XSRF-TOKEN': antiforgeryToken, 'Content-Type': type },
+    body: blob
   });
   if (!resp.ok) {
     alert(await resp.json());
