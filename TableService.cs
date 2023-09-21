@@ -13,8 +13,8 @@ public class TableService(string domain)
   }
 
   private static TableServiceClient client;
-  private static readonly string[] selectPartitionKey = new[] { "PartitionKey" };
-  private static readonly string[] selectRowKey = new[] { "RowKey" };
+  private static readonly string[] selectPartitionKey = ["PartitionKey"];
+  private static readonly string[] selectRowKey = ["RowKey"];
 
   // Reduces cold start latency by several seconds
   public static async Task WarmUpAsync() {
@@ -165,15 +165,15 @@ public class TableService(string domain)
     var articlesTable = client.GetTableClient("articles");
     newArticle.PartitionKey = domain;
     var articlesBatch = new List<TableTransactionAction>() {
-      new TableTransactionAction(TableTransactionActionType.Add, newArticle),
-      new TableTransactionAction(TableTransactionActionType.Delete, new Article { PartitionKey = domain, RowKey = originalArticleKey }, ETag.All)
+      new(TableTransactionActionType.Add, newArticle),
+      new(TableTransactionActionType.Delete, new Article { PartitionKey = domain, RowKey = originalArticleKey }, ETag.All)
     };
     await articlesTable.SubmitTransactionAsync(articlesBatch);
 
     var newslettersTable = client.GetTableClient("newsletters");
     var newslettersBatch = new List<TableTransactionAction>() {
-      new TableTransactionAction(TableTransactionActionType.UpdateReplace, source, ETag.All),
-      new TableTransactionAction(TableTransactionActionType.UpdateReplace, dest, ETag.All)
+      new(TableTransactionActionType.UpdateReplace, source, ETag.All),
+      new(TableTransactionActionType.UpdateReplace, dest, ETag.All)
     };
     await newslettersTable.SubmitTransactionAsync(newslettersBatch);
   }

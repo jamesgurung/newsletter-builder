@@ -72,7 +72,7 @@
   </section>
 </template>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.0/cropper.min.css" integrity="sha512-gNSHyKCA9X3fCDdTd5UxyNaSznSyGtR9pwf5YwSp7haDRz6Gqor0nY20POCYLseXq5n/FGAEogNp7G0d56d3jg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" integrity="sha512-hvNR0F/e2J7zPPfLC9auFe3/SE0yG4aJCOd/qxew74NN7eyiSKjr7xJJMu1Jy2wf7FXITpWS1E/RY8yzuXN7VA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
 @section Scripts {
   <script>
@@ -87,8 +87,8 @@
     const bannedWords = @Html.Raw(Organisation.Instance.BannedWords is null ? "[]" : Organisation.Instance.BannedWords);
     let coverPhoto = @Html.Raw($"\"{Model.CoverPhoto}\"" ?? "null");
   </script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.0/cropper.min.js" integrity="sha512-7C1FbUL8fX5IKwBEHEjwyyGssfSOKms2NQbMj3GYdeQTr4Xmbrk/q/4eqcDuROAbJwT71ATVpVIUiaeMnNqq/Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0-preview.7.23375.9/signalr.min.js" integrity="sha512-RHTnnncDkHjF3wxYYWVFohVwWHIDecqKLgfuLxuNQo5JZpJjZCiNrphXRAn4Yak3mhkksJ1JOrz0c5PKFqfdHw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js" integrity="sha512-9KkIqdfN7ipEW6B6k+Aq20PV31bjODg4AA52W+tYtAE0jE0kMx49bjJ3FgvS56wzmyfMUHbQ4Km2b7l9+Y/+Eg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0-rc.1.23421.29/signalr.min.js" integrity="sha512-pzW9HHmfpRIyuEL4+Sw/HybZrLp3GmhVG4utYOAms5KimWpAdMBbv9nPDTNERoBoln3Y4Tl9lw+L4P5f/BMBcA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="/js/shared.js" asp-append-version="true"></script>
   <script src="/js/article.js" asp-append-version="true"></script>
 }

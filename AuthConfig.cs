@@ -67,7 +67,7 @@ public static class AuthConfig
       .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
   }
 
-  private static readonly string[] authenticationSchemes = new[] { "Microsoft" };
+  private static readonly string[] authenticationSchemes = ["Microsoft"];
 
   public static void MapAuthPaths(this WebApplication app)
   {
