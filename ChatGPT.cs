@@ -7,6 +7,8 @@ namespace NewsletterBuilder;
 
 public class ChatGPT(HttpClient client, IHubClients<IChatClient> hub, string chatId)
 {
+  public static string ModelName { get; set; }
+
   public async Task<string> RequestArticleFeedbackAsync(string headline, string text, string identifier)
   {
 
@@ -55,7 +57,8 @@ public class ChatGPT(HttpClient client, IHubClients<IChatClient> hub, string cha
       Temperature = temperature,
       Choices = 1,
       Stream = true,
-      Messages = prompts
+      Messages = prompts,
+      Model = ModelName
     };
     for (var attempt = 1; attempt <= 3; attempt++)
     {
@@ -98,6 +101,8 @@ public class ChatGPTRequest
   public decimal Choices { get; set; }
   [JsonPropertyName("stream")]
   public bool Stream { get; set; }
+  [JsonPropertyName("model")]
+  public string Model { get; set; }
 }
 
 public class ChatGPTMessage

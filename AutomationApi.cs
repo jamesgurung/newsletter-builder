@@ -20,9 +20,8 @@ public static class AutomationApi
     {
       if (auth != _automationApiKey) return Results.Unauthorized();
       if (string.IsNullOrEmpty(domain)) return Results.BadRequest("Domain required.");
-      var reminders = Organisation.Instance.Reminders.Where(o => o.Domain == domain).ToList();
-      if (n >= reminders.Count) return Results.BadRequest("No reminder found at this index.");
-      var reminder = reminders[n];
+      if (n >= Organisation.Instance.Reminders.Count) return Results.BadRequest("No reminder found at this index.");
+      var reminder = Organisation.Instance.Reminders[n];
       
       var now = TimeZoneInfo.ConvertTime(DateTime.UtcNow, TimeZoneInfo.Utc, _britishZone);
       if (!env.IsDevelopment() && now.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) return Results.Conflict("Cannot send emails at the weekend.");

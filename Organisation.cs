@@ -4,6 +4,7 @@ public class Organisation
 {
   public static Organisation Instance { get; set; }
 
+  public string Domain { get; init; }
   public string Name { get; init; }
   public string NewsletterUrl { get; init; }
   public string NewsletterEditorUrl { get; init; }
@@ -20,7 +21,6 @@ public class Organisation
 }
 
 public class Reminder {
-  public string Domain { get; set; }
   public int DaysBeforeDeadline { get; set; }
   public string Subject { get; set; }
   public string Message { get; set; }
