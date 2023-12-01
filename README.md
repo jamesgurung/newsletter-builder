@@ -36,6 +36,7 @@ Here are the steps:
     * Implicit grant - `ID tokens`
     * Supported account types - `Accounts in this organizational directory only`
     * API permissions - `Microsoft Graph - User.Read`
+    * Token configuration - add optional claim of type `ID`: `upn`
 
 4. Create an Azure OpenAI Service GPT-4 deployment.
 

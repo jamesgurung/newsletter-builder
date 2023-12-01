@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using NewsletterBuilder.Entities;
 using System.Net;
 using System.Security.Claims;
 
@@ -36,14 +37,19 @@ public static class AuthConfig
         o.Authority = $"https://login.microsoftonline.com/{builder.Configuration["Azure:TenantId"]}/v2.0/";
         o.ClientId = builder.Configuration["Azure:ClientId"];
         o.ResponseType = OpenIdConnectResponseType.IdToken;
+        o.Scope.Add("profile");
         o.Events = new()
         {
           OnTicketReceived = async context =>
           {
-            var email = context.Principal.Claims.FirstOrDefault(c => c.Type == "preferred_username").Value.ToLowerInvariant();
-            var emailParts = email.Split('@');
-            var service = new TableService(emailParts[1]);
-            var user = await service.GetUserAsync(emailParts[0]);
+            var email = context.Principal.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Upn)?.Value.ToLowerInvariant();
+            User user = null;
+            if (email is not null)
+            {
+              var emailParts = email.Split('@');
+              var service = new TableService(emailParts[1]);
+              user = await service.GetUserAsync(emailParts[0]);
+            }
             if (user is null)
             {
               context.Response.Redirect("/auth/denied");

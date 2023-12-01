@@ -18,7 +18,7 @@ public class Mailer
     _isDevelopment = isDevelopment;
   }
 
-  private readonly List<PostmarkMessage> _messages = new();
+  private readonly List<PostmarkMessage> _messages = [];
   private int _totalMessages;
 
   public void Enqueue(string to, string subject, bool isBroadcast, string html, string plainText = null)

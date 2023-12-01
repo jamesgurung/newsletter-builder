@@ -472,7 +472,7 @@ public static class Api
     var validKeys = articles.Select(o => o.ShortName).Where(o => o != "intro").ToHashSet();
     if (add is not null) validKeys.Add(add);
     if (remove is not null) validKeys.Remove(remove);
-    var submittedKeys = order is null ? new() : order.Split(',').Where(o => o.Length > 0).ToHashSet();
+    var submittedKeys = order is null ? [] : order.Split(',').Where(o => o.Length > 0).ToHashSet();
     return submittedKeys.SetEquals(validKeys);
   }
 }

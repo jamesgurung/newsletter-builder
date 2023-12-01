@@ -28,7 +28,7 @@ public class ChatGPT(HttpClient client, IHubClients<IChatClient> hub, string cha
       $"* Provide feedback on the writing style (it should be a balance of professional and casual, upbeat, and highly engaging). " +
       $"Give examples of how parts could be reworded, if this is needed.";
 
-    var spagResponse = await SendGptRequestAsync(new List<ChatGPTMessage>() { new() { Role = "user", Content = prompt1 } }, 0.7m, identifier);
+    var spagResponse = await SendGptRequestAsync([new() { Role = "user", Content = prompt1 }], 0.7m, identifier);
     var reviewPrompts = new List<ChatGPTMessage>() {
       new() { Role = "user", Content = prompt1 },
       new() { Role = "assistant", Content = spagResponse },

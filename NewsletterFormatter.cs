@@ -26,7 +26,7 @@ public static class NewsletterFormatter
       $"  <meta name=\"twitter:site\" content=\"{Organisation.Instance.TwitterHandle}\" />\n" +
       $"  <meta property=\"og:title\" content=\"{title.Replace("\"", "&quot;", StringComparison.OrdinalIgnoreCase)}\" />\n" +
       $"  <meta property=\"og:type\" content=\"website\" />\n";
-    foreach (var comment in webDocument.Descendents<IComment>())
+    foreach (var comment in webDocument.Descendants<IComment>())
     {
       comment.Remove();
     }

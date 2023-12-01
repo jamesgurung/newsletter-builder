@@ -44,7 +44,7 @@ public class RenderPageModel() : PageModel
 
   public static IList<Article> OrderArticles(IEnumerable<Article> articles, string order) {
     var orderDictionary = order?.Split(',').Select((id, pos) => new { Id = id, Pos = pos })
-      .ToDictionary(o => o.Id, o => o.Pos) ?? new Dictionary<string, int>();
+      .ToDictionary(o => o.Id, o => o.Pos) ?? [];
     return articles.OrderBy(o => o.ShortName != "intro")
       .ThenBy(o => orderDictionary.TryGetValue(o.ShortName, out var value) ? value : int.MaxValue).ToList();
   }
