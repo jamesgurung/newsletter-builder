@@ -20,8 +20,9 @@ public static class AutomationApi
     {
       if (auth != _automationApiKey) return Results.Unauthorized();
       if (string.IsNullOrEmpty(domain)) return Results.BadRequest("Domain required.");
-      if (n >= Organisation.Instance.Reminders.Count) return Results.BadRequest("No reminder found at this index.");
-      var reminder = Organisation.Instance.Reminders[n];
+      var thisOrganisation = Organisation.ByDomain[domain];
+      if (n >= thisOrganisation.Reminders.Count) return Results.BadRequest("No reminder found at this index.");
+      var reminder = thisOrganisation.Reminders[n];
       
       var now = TimeZoneInfo.ConvertTime(DateTime.UtcNow, TimeZoneInfo.Utc, _britishZone);
       if (!env.IsDevelopment() && now.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) return Results.Conflict("Cannot send emails at the weekend.");
@@ -50,11 +51,11 @@ public static class AutomationApi
           (string.IsNullOrEmpty(article.Content) ? string.Empty : "It looks like you have made a start on this article, but it has not yet been submitted.<br /><br />") +
           $"Article: <b>{article.ShortName}</b><br />" +
           $"Deadline: <b>{now.AddDays(reminder.DaysBeforeDeadline):dddd d MMMM}</b><br /><br />" +
-          $"<a href=\"{Organisation.Instance.NewsletterEditorUrl}/{article.RowKey.Replace('_', '/')}\" style=\"text-decoration: none; color: #1379CE\">" +
+          $"<a href=\"{Organisation.NewsletterEditorUrl}/{article.RowKey.Replace('_', '/')}\" style=\"text-decoration: none; color: #1379CE\">" +
           "<b>Click here to submit your article and photos</b></a><br /><br />" +
-          $"Many thanks<br /><br />{Organisation.Instance.Name}<br /></body></html>";
+          $"Many thanks<br /><br />{thisOrganisation.Name}<br /></body></html>";
 
-        mailer.Enqueue(contributorEmails, reminder.Subject, false, body);
+        mailer.Enqueue(contributorEmails, reminder.Subject, thisOrganisation.FromEmail, thisOrganisation.ReminderReplyTo, false, body);
       }
 
       await mailer.SendAsync();

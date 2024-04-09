@@ -4,6 +4,7 @@
 @model RenderPageModel
 @{
   Layout = null;
+  var thisOrganisation = Organisation.ByDomain[User.GetDomain()];
 }
 <!DOCTYPE html>
 <html lang="en" xmlns="https://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -15,7 +16,7 @@
   <!--[if !mso]><!-->
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <!--<![endif]-->
-  <link id="webstyles" rel="stylesheet" href="@Organisation.Instance.NewsletterUrl/webstyles.css">
+  <link id="webstyles" rel="stylesheet" href="@thisOrganisation.NewsletterUrl/webstyles.css">
   <style id="media" type="text/css">
     img {display:block}
     @@media only screen and (max-width:640px) {
@@ -102,7 +103,7 @@
   </xml>
   </noscript>
   <![endif]-->
-  <meta property="og:image" content="@(Model.CoverPhoto is null ? null : $"{Organisation.Instance.NewsletterUrl}/{Model.NewsletterDate}/{Model.CoverPhoto}")" />
+  <meta property="og:image" content="@(Model.CoverPhoto is null ? null : $"{thisOrganisation.NewsletterUrl}/{Model.NewsletterDate}/{Model.CoverPhoto}")" />
 </head>
 
 <body>
@@ -117,7 +118,7 @@
           <table role="presentation" width="100%">
             <tr>
               <td class="header">
-                <img class="logo" alt="@Organisation.Instance.Name Logo" src="@Organisation.Instance.NewsletterUrl/logo.jpg" width="125" height="125">
+                <img class="logo" alt="@thisOrganisation.Name Logo" src="@thisOrganisation.NewsletterUrl/logo.jpg" width="125" height="125">
                 <h1>@Html.Raw(IfBlank(Model.Articles[0].Content.Headline, "X"))</h1>
               </td>
             </tr>
@@ -139,7 +140,7 @@
           <p id="@(i == 0 && article.ShortName == "intro" ? "intro" : null)">@Html.Raw(text + showName)</p>
           @if (articleSection.IncludeImage)
           {
-          <img class="photo" alt="@articleSection.Alt" src="@Organisation.Instance.NewsletterUrl/@Model.NewsletterDate/@articleSection.ImageRenderName">
+          <img class="photo" alt="@articleSection.Alt" src="@thisOrganisation.NewsletterUrl/@Model.NewsletterDate/@articleSection.ImageRenderName">
           }
           }
           <hr />
@@ -157,7 +158,7 @@
           <table id="footer" role="presentation" width="100%">
             <tr>
               <td>
-                <p><b>@Organisation.Instance.Address</b><br /><br /><b><a href="@Organisation.Instance.NewsletterUrl">View previous newsletters</a></b><br /><br />@Organisation.Instance.Footer<br /><br />If you would prefer to stop receiving regular newsletters, please click: <a href="{{{ pm:unsubscribe }}}">Unsubscribe</a></p>
+                <p><b>@thisOrganisation.Address</b><br /><br /><b><a href="@thisOrganisation.NewsletterUrl">View previous newsletters</a></b><br /><br />@thisOrganisation.Footer<br /><br />If you would prefer to stop receiving regular newsletters, please click: <a href="{{{ pm:unsubscribe }}}">Unsubscribe</a></p>
               </td>
             </tr>
           </table>

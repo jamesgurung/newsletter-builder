@@ -6,7 +6,7 @@ namespace NewsletterBuilder;
 
 public static class NewsletterFormatter
 {
-  public static async Task<NewsletterFormats> FormatAsync(string originalHtml) {
+  public static async Task<NewsletterFormats> FormatAsync(string originalHtml, string twitterHandle) {
     var htmlTransform = PreMailer.Net.PreMailer.MoveCssInline(originalHtml, removeStyleElements: true, ignoreElements: "#media,#webstyles");
     var htmlBody = htmlTransform.Html;
     var browser = BrowsingContext.New(Configuration.Default);
@@ -23,7 +23,7 @@ public static class NewsletterFormatter
       $"\n  <title>{title}</title>\n" +
       $"  <meta name=\"description\" content=\"{intro.Replace("\"", "&quot;", StringComparison.OrdinalIgnoreCase)}\" />\n" +
       $"  <meta name=\"twitter:card\" content=\"summary_large_image\" />\n" +
-      $"  <meta name=\"twitter:site\" content=\"{Organisation.Instance.TwitterHandle}\" />\n" +
+      $"  <meta name=\"twitter:site\" content=\"{twitterHandle}\" />\n" +
       $"  <meta property=\"og:title\" content=\"{title.Replace("\"", "&quot;", StringComparison.OrdinalIgnoreCase)}\" />\n" +
       $"  <meta property=\"og:type\" content=\"website\" />\n";
     foreach (var comment in webDocument.Descendants<IComment>())

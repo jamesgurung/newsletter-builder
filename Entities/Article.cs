@@ -18,7 +18,7 @@ public class Article : ITableEntity
   public bool IsApproved { get; set; }
 
   [IgnoreDataMember]
-  public IList<string> ContributorList => Contributors.Split(',').ToList();
+  public IList<string> ContributorList => [.. Contributors.Split(',')];
   [IgnoreDataMember]
   public string Date => RowKey.Split('_')[0];
   [IgnoreDataMember]

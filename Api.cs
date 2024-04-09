@@ -392,7 +392,7 @@ public static class Api
       if (string.IsNullOrEmpty(newsletter.CoverPhoto)) return Results.BadRequest("Missing cover photo.");
       var articles = await tableService.ListArticlesAsync(key);
       if (articles.Any(o => !o.IsApproved)) return Results.BadRequest("Not all articles are approved.");
-      var formats = await NewsletterFormatter.FormatAsync(publishData.Html);
+      var formats = await NewsletterFormatter.FormatAsync(publishData.Html, Organisation.ByDomain[context.User.GetDomain()].TwitterHandle);
       var blobService = new BlobService(domain);
       await blobService.PublishNewsletterAsync(key, formats.WebHtml, formats.EmailHtml, formats.EmailPlainText);
       await blobService.AppendToNewsletterListAsync(new() { Date = key, Description = publishData.Description });
@@ -415,6 +415,8 @@ public static class Api
       if (articles.Any(o => o.Timestamp > newsletter.LastPublished)) return Results.BadRequest("Newsletter has been updated since last publish.");
       var introContent = JsonSerializer.Deserialize<ArticleContentData>(articles.Single(o => o.ShortName == "intro").Content);
       var title = introContent.Headline;
+      var thisOrganisation = Organisation.ByDomain[domain];
+      var currentUserEmail = context.User.GetEmail();
 
       var blobService = new BlobService(domain);
       string html = await blobService.ReadTextAsync(key, "email.html");
@@ -423,12 +425,12 @@ public static class Api
       
       switch (sendData.To) {
         case "preview":
-          mailer.Enqueue(context.User.GetEmail(), $"Preview: {title}", true, html, plainText);
+          mailer.Enqueue(context.User.GetEmail(), $"Preview: {title}", thisOrganisation.FromEmail, currentUserEmail, true, html, plainText);
           await mailer.SendAsync();
           break;
 
         case "qa":
-          mailer.Enqueue(Organisation.Instance.QualityAssuranceEmail, $"Please QA: {title}", true, html, plainText);
+          mailer.Enqueue(thisOrganisation.QualityAssuranceEmail, $"Please QA: {title}", thisOrganisation.FromEmail, currentUserEmail, true, html, plainText);
           await mailer.SendAsync();
           break;
 
@@ -443,7 +445,7 @@ public static class Api
           var sent = 0;
           foreach (var batch in batches) {
             foreach (var recipient in batch) {
-              mailer.Enqueue(recipient, title, true, html, plainText);
+              mailer.Enqueue(recipient, title, thisOrganisation.FromEmail, null, true, html, plainText);
               sent++;
             }
             await mailer.SendAsync();
@@ -452,8 +454,8 @@ public static class Api
           }
 
           var socialMediaHtml = "<html><body style=\"font-family: arial, helvetica, sans-serif; font-size: 11pt\">Hi<br /><br />Please post the newsletter on social media.<br /><br />Best wishes<br /><br />" +
-            $"{Organisation.Instance.Name}<br /><br /></body></html>";
-          mailer.Enqueue(Organisation.Instance.QualityAssuranceEmail, "Newsletter", false, socialMediaHtml);
+            $"{thisOrganisation.Name}<br /><br /></body></html>";
+          mailer.Enqueue(thisOrganisation.QualityAssuranceEmail, "Newsletter", thisOrganisation.FromEmail, currentUserEmail, false, socialMediaHtml);
           await mailer.SendAsync();
 
           newsletter.IsSent = true;

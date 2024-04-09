@@ -47,8 +47,11 @@ public static class AuthConfig
             if (email is not null)
             {
               var emailParts = email.Split('@');
-              var service = new TableService(emailParts[1]);
-              user = await service.GetUserAsync(emailParts[0]);
+              if (Organisation.ByDomain.ContainsKey(emailParts[1]))
+              {
+                var service = new TableService(emailParts[1]);
+                user = await service.GetUserAsync(emailParts[0]);
+              }
             }
             if (user is null)
             {

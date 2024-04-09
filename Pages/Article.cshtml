@@ -1,5 +1,8 @@
 ﻿@page "/{date:regex(^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$)}/{articleName}"
 @model ArticlePageModel
+@{
+  var thisOrganisation = Organisation.ByDomain[User.GetDomain()];
+}
 
 <p style="text-align: center; color: grey">Newsletter: <b>@Model.Article.Date</b> &nbsp; Article: <b>@Model.Article.ShortName</b></p>
 
@@ -41,7 +44,7 @@
     <li>Aim for at least 3 paragraphs, each paired with a photo. If you have fewer photos, click the &#10006; icons to remove sections.</li>
     <li>Each paragraph should be 1-2 sentences.</li>
     <li>Carefully check your spelling, punctuation, and grammar.</li>
-    <li>Photos must show students, staff, or student work. It is your responsibility to check @Html.Raw(string.IsNullOrEmpty(Organisation.Instance.PhotoConsentUrl) ? "photo consent" : $"<a href=\"{Organisation.Instance.PhotoConsentUrl}\" target=\"blank\">photo consent</a>"). Do not upload other types of images (e.g. logos or infographics).</li>
+    <li>Photos must show students, staff, or student work. It is your responsibility to check @Html.Raw(string.IsNullOrEmpty(thisOrganisation.PhotoConsentUrl) ? "photo consent" : $"<a href=\"{thisOrganisation.PhotoConsentUrl}\" target=\"blank\">photo consent</a>"). Do not upload other types of images (e.g. logos or infographics).</li>
   </ul>
 
   <div id="image-editor">
@@ -84,7 +87,7 @@
     let isApproved = @Model.Article.IsApproved.ToString().ToLowerInvariant();
     const blobBaseUrl = '@Html.Raw(Model.BlobBaseUrl)';
     const sas = '@Html.Raw(Model.BlobSas)';
-    const bannedWords = @Html.Raw(Organisation.Instance.BannedWords is null ? "[]" : Organisation.Instance.BannedWords);
+    const bannedWords = @Html.Raw(thisOrganisation.BannedWords is null ? "[]" : thisOrganisation.BannedWords);
     let coverPhoto = @Html.Raw($"\"{Model.CoverPhoto}\"" ?? "null");
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js" integrity="sha512-9KkIqdfN7ipEW6B6k+Aq20PV31bjODg4AA52W+tYtAE0jE0kMx49bjJ3FgvS56wzmyfMUHbQ4Km2b7l9+Y/+Eg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>

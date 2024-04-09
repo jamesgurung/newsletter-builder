@@ -8,6 +8,7 @@
   var isEditor = User.IsInRole(Roles.Editor);
   var users = isEditor ? await service.ListUsersAsync() : null;
   var nextDate = newsletters.Any() ? DateOnly.ParseExact(newsletters.Last().RowKey, "yyyy-MM-dd").AddDays(7) : DateOnly.FromDateTime(DateTime.Today);
+  var thisOrganisation = Organisation.ByDomain[User.GetDomain()];
 }
 <h2>Newsletters</h2>
 <ul id="newsletters">
@@ -57,7 +58,7 @@
   {
     <li id="addnewslettersection">
       <input id="newsletterdate" type="date" value="@nextDate.ToString("yyyy-MM-dd")" style="margin-right: 6px; width: 108px; font-weight: bold" />
-      due: <input id="newsletterdeadline" type="date" value="@nextDate.AddDays(-Organisation.Instance.DefaultDeadlineDaysBeforePublish).ToString("yyyy-MM-dd")" style="margin-right: 6px; width: 108px" />
+      due: <input id="newsletterdeadline" type="date" value="@nextDate.AddDays(-thisOrganisation.DefaultDeadlineDaysBeforePublish).ToString("yyyy-MM-dd")" style="margin-right: 6px; width: 108px" />
       <a id="addnewsletter">Add</a>
     </li>
   }
@@ -127,7 +128,7 @@
     const me = '@username.ToString()';
     @if (isEditor) {
     @:const usernames = [@Html.Raw(string.Join(',', users.Select(o => $"\"{o.RowKey}\"")))];
-      @:const defaultDeadlineOffset = @Organisation.Instance.DefaultDeadlineDaysBeforePublish;
+      @:const defaultDeadlineOffset = @thisOrganisation.DefaultDeadlineDaysBeforePublish;
     }
   </script>
   <script src="/js/shared.js" asp-append-version="true"></script>

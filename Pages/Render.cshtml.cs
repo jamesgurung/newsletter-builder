@@ -25,7 +25,7 @@ public class RenderPageModel() : PageModel
     var users = (await tableService.ListUsersAsync()).Where(o => !o.IsEditor).ToDictionary(o => o.RowKey, o => o.DisplayName);
     Articles = OrderArticles(articles, newsletter.ArticleOrder).Select(o => new DisplayArticle {
       ShortName = o.ShortName,
-      Content = o.Content is null ? new() { Sections = new List<ArticleSection>() } : JsonSerializer.Deserialize<ArticleContentData>(o.Content),
+      Content = o.Content is null ? new() { Sections = [] } : JsonSerializer.Deserialize<ArticleContentData>(o.Content),
       AuthorDisplayName = users.TryGetValue(o.ContributorList[0], out var name) ? name : null
     }).ToList();
     foreach (var article in Articles) {
@@ -45,8 +45,7 @@ public class RenderPageModel() : PageModel
   public static IList<Article> OrderArticles(IEnumerable<Article> articles, string order) {
     var orderDictionary = order?.Split(',').Select((id, pos) => new { Id = id, Pos = pos })
       .ToDictionary(o => o.Id, o => o.Pos) ?? [];
-    return articles.OrderBy(o => o.ShortName != "intro")
-      .ThenBy(o => orderDictionary.TryGetValue(o.ShortName, out var value) ? value : int.MaxValue).ToList();
+    return [.. articles.OrderBy(o => o.ShortName != "intro").ThenBy(o => orderDictionary.TryGetValue(o.ShortName, out var value) ? value : int.MaxValue)];
   }
 
   public static void AddImageRenderNames(string articleShortName, IList<ArticleSection> sections) {

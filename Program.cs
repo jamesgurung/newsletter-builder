@@ -14,10 +14,9 @@ var connectionString = $"DefaultEndpointsProtocol=https;AccountName={storageAcco
 TableService.Configure(connectionString);
 BlobService.Configure(connectionString, storageAccountKey);
 
-Organisation.Instance = builder.Configuration.GetSection("Organisation").Get<Organisation>();
+Organisation.ByDomain = builder.Configuration.GetSection("Organisations").Get<Organisation[]>().ToDictionary(o => o.Domain, StringComparer.OrdinalIgnoreCase);
 AutomationApi.Configure(builder.Configuration["AutomationApiKey"]);
-Mailer.Configure(builder.Configuration["PostmarkServerToken"], Organisation.Instance.FromEmail, Organisation.Instance.ReminderReplyTo,
-  builder.Environment.IsDevelopment());
+Mailer.Configure(builder.Configuration["PostmarkServerToken"], builder.Environment.IsDevelopment());
 
 builder.ConfigureAuth();
 builder.Services.AddResponseCompression();
@@ -37,7 +36,7 @@ var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
-  var domain = Organisation.Instance.NewsletterEditorUrl.Replace("https://", string.Empty, StringComparison.OrdinalIgnoreCase);
+  var domain = Organisation.NewsletterEditorUrl.Replace("https://", string.Empty, StringComparison.OrdinalIgnoreCase);
   app.Use(async (context, next) =>
   {
     if (context.Request.Path.Value == "/" && context.Request.Headers.UserAgent.ToString().Equals("alwayson", StringComparison.OrdinalIgnoreCase))

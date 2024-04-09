@@ -2,12 +2,12 @@
 
 public class Organisation
 {
-  public static Organisation Instance { get; set; }
+  public static Dictionary<string, Organisation> ByDomain { get; set; }
+  public static string NewsletterEditorUrl { get; set; }
 
-  public string Domain { get; init; }
   public string Name { get; init; }
+  public string Domain { get; init; }
   public string NewsletterUrl { get; init; }
-  public string NewsletterEditorUrl { get; init; }
   public string Address { get; init; }
   public string Footer { get; init; }
   public string BannedWords { get; init; }
@@ -18,6 +18,8 @@ public class Organisation
   public int DefaultDeadlineDaysBeforePublish { get; init; }
   public IList<Reminder> Reminders { get; init; }
   public string TwitterHandle { get; init; }
+  public string AzureStorageStaticWebsiteAccountName { get; init; }
+  public string AzureStorageStaticWebsiteAccountKey { get; init; }
 }
 
 public class Reminder {
