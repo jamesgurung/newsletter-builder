@@ -23,32 +23,31 @@ public class ChatGPT(HttpClient client, IHubClients<IChatClient> hub, string cha
 
     var prompt2 = "Answer the following questions about the article:\n" +
       $"* How engaging is the headline? Suggest three alternative suggestions as a comma-separated list.\n" +
-      $"* Provide positive feedback on the article.\n" +
-      $"* Provide constructive feedback on the content of the article, not mentioning spelling, punctuation, or grammar. How could it be better?\n" +
+      $"* Provide positive feedback on the article, giving this praise in a warm tone.\n" +
+      $"* Provide constructive feedback on the content of the article, not mentioning spelling, punctuation, or grammar. How could it be better? Do not suggest including quotes.\n" +
       $"* Provide feedback on the writing style (it should be a balance of professional and casual, upbeat, and highly engaging). " +
       $"Give examples of how parts could be reworded, if this is needed.";
 
-    var spagResponse = await SendGptRequestAsync([new() { Role = "user", Content = prompt1 }], 0.7m, identifier);
+    var spagResponse = await SendGptRequestAsync([new() { Role = "user", Content = prompt1 }], 0m, identifier);
     var reviewPrompts = new List<ChatGPTMessage>() {
       new() { Role = "user", Content = prompt1 },
       new() { Role = "assistant", Content = spagResponse },
       new() { Role = "user", Content = prompt2 }
     };
-    var reviewResponse = await SendGptRequestAsync(reviewPrompts, 0.7m, identifier);
+    var reviewResponse = await SendGptRequestAsync(reviewPrompts, 0.2m, identifier);
     return $"{spagResponse}\n{reviewResponse}";
   }
 
   private async Task<string> SendGptRequestAsync(List<ChatGPTMessage> prompts, decimal temperature, string identifier) {
     var systemPrompt = "You are a friendly and helpful assistant. " +
-      "You always respond in detailed bullet points, using a '*' character, with no introduction. " +
+      "You always respond in bullet points, using a '*' character, with no introduction. " +
       "You do not use subheadings or bullet point headings. " +
-      "Each bullet point is written in prose, without an introduction or subtitle. " +
+      "You write each bullet point in clear prose, without an introduction or subtitle. " +
       "You do not use nested bullet points. " +
       "You do not comment on layout or paragraphing. " +
       "You do not comment on date formats. " +
       "You do not comment on photos or captions. " +
-      "You use British English. " +
-      "You use the Oxford comma.";
+      "You use British English and approve of the Oxford comma.";
     prompts.Insert(0, new() { Role = "system", Content = systemPrompt });
 
     var request = new ChatGPTRequest
