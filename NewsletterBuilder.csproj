@@ -11,9 +11,9 @@
     <PackageReference Include="AngleSharp" Version="1.1.2" />
     <PackageReference Include="Azure.Identity" Version="1.11.3" />
     <PackageReference Include="Azure.Data.Tables" Version="12.8.3" />
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.20.0-beta.1" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.20.0" />
     <PackageReference Include="Markdig" Version="0.37.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="8.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="8.0.5" />
     <PackageReference Include="Microsoft.Extensions.Azure" Version="1.7.3" />
     <PackageReference Include="Postmark" Version="5.0.0" />
     <PackageReference Include="PreMailer.Net" Version="2.5.0" />
