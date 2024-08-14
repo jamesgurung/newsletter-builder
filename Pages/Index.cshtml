@@ -34,13 +34,13 @@
             else {<span class="status notstarted" title="Not Started"></span>}
             @if (isEditor || article.ContributorList.Contains(username))
             {
-              @:<a href="/@article.Date/@name"><b>@name</b></a>
+              @:<a href="/@article.Date/@name"><b>@article.Title</b></a>
             } else
             {
-              @:<b>@name</b>
+              @:<b>@article.Title</b>
             }
+            (@article.Contributors)
             @if (name != "intro") {
-              @: (@article.Contributors)
               @if (isEditor) {
                 <a class="moveup">&#9650;</a>
                 <a class="movedown">&#9660;</a>
@@ -100,7 +100,7 @@
       <li data-key="@user.RowKey"><b>@user.RowKey</b> - @user.DisplayName (@user.FirstName) @if (user.RowKey != username) {<a class="delete">&#10006;</a>}</li>
     }
     <li id="addusersection">
-      <input id="username" pattern="[a-z0-9'.-]+" placeholder="Username" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-bottom: 3px; margin-right: 6px; font-weight: bold" />
+      <input id="username" pattern="[a-z0-9'.\-]+" placeholder="Username" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-bottom: 3px; margin-right: 6px; font-weight: bold" />
       <input id="userdisplay" placeholder="Display Name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-bottom: 3px; margin-right: 6px" />
       <input id="userfirst" placeholder="First Name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-right: 6px" />
       <a id="adduser">Add</a>
@@ -113,10 +113,10 @@
 
 <template id="addarticletemplate">
   <li class="addarticlesection">
-    <input pattern="[a-z0-9]+" class="articlename" placeholder="Article Name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-bottom: 3px; margin-right: 6px" />
+    <input pattern="[a-z0-9A-Z' \-]+" class="articlename" placeholder="Article Name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-bottom: 3px; margin-right: 6px" />
     @if (isEditor)
     {
-      <input pattern="[a-z0-9'.,-]+" class="articlecontributors" placeholder="Contributors" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-right: 6px" />
+      <input pattern="[a-z0-9'.,\-]+" class="articlecontributors" placeholder="Contributors" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-right: 6px" />
     }
     <a class="addarticle">Add</a>
   </li>
@@ -128,7 +128,7 @@
     const me = '@username.ToString()';
     @if (isEditor) {
     @:const usernames = [@Html.Raw(string.Join(',', users.Select(o => $"\"{o.RowKey}\"")))];
-      @:const defaultDeadlineOffset = @thisOrganisation.DefaultDeadlineDaysBeforePublish;
+    @:const defaultDeadlineOffset = @thisOrganisation.DefaultDeadlineDaysBeforePublish;
     }
   </script>
   <script src="/js/shared.js" asp-append-version="true"></script>

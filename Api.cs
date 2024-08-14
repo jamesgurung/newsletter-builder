@@ -137,7 +137,7 @@ public static class Api
         return Results.Conflict("Newsletter already exists.");
       }
       var username = context.User.GetUsername();
-      await service.CreateArticleAsync(new Article { PartitionKey = domain, RowKey = $"{newsletter.RowKey}_intro", Owner = username, Contributors = username });
+      await service.CreateArticleAsync(new Article { PartitionKey = domain, RowKey = $"{newsletter.RowKey}_intro", Title = "Intro", Owner = username, Contributors = username });
       return Results.Ok();
     });
 

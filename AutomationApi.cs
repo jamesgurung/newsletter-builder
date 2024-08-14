@@ -32,7 +32,7 @@ public static class AutomationApi
       var service = new TableService(domain);
       var newsletter = (await service.ListNewslettersAsync()).SingleOrDefault(o => o.Deadline == newsletterDeadline);
       if (newsletter is null) return Results.NoContent();
-      var articles = (await service.ListArticlesAsync(newsletter.RowKey)).Where(o => !o.IsSubmitted && o.ShortName != "intro").ToList();
+      var articles = (await service.ListArticlesAsync(newsletter.RowKey)).Where(o => !o.IsSubmitted && o.Title != "Intro").ToList();
       if (articles.Count == 0) return Results.NoContent();
 
       var users = (await service.ListUsersAsync()).ToDictionary(o => o.RowKey);
@@ -49,7 +49,7 @@ public static class AutomationApi
         var body = $"<html><body style=\"font-family: Arial; font-size: 11pt\">Hi {contributorNames}<br /><br />" +
           reminder.Message + "<br /><br />" +
           (string.IsNullOrEmpty(article.Content) ? string.Empty : "It looks like you have made a start on this article, but it has not yet been submitted.<br /><br />") +
-          $"Article: <b>{article.ShortName}</b><br />" +
+          $"Article: <b>{article.Title}</b><br />" +
           $"Deadline: <b>{now.AddDays(reminder.DaysBeforeDeadline):dddd d MMMM}</b><br /><br />" +
           $"<a href=\"{Organisation.NewsletterEditorUrl}/{article.RowKey.Replace('_', '/')}\" style=\"text-decoration: none; color: #1379CE\">" +
           "<b>Click here to submit your article and photos</b></a><br /><br />" +

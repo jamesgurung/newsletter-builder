@@ -7,7 +7,7 @@ function rejectInvalidInput(elements) {
     prevVals.push('');
     const idx = inputsIdx++;
     el.addEventListener('input', e => {
-      e.target.value = e.target.value.toLowerCase();
+      if (!e.target.getAttribute('pattern').includes('A')) e.target.value = e.target.value.toLowerCase();
       if (e.target.checkValidity()) prevVals[idx] = e.target.value;
       else e.target.value = prevVals[idx];
     });
@@ -75,7 +75,7 @@ if (isEditor) {
 
     const intro = document.createElement('li');
     const link = `${date}/intro`;
-    intro.innerHTML = `<span class="status notstarted" title="Not Started"></span><a href="/${link}"><b>intro</b></a>`;
+    intro.innerHTML = `<span class="status notstarted" title="Not Started"></span><a href="/${link}"><b>Intro</b></a>`;
     intro.dataset.key = `${date}_intro`;
     ul.prepend(intro);
 
@@ -116,9 +116,10 @@ document.getElementById('newsletters').addEventListener('click', async e => {
     li.remove();
   } else if (e.target.classList.contains('addarticle')) {
     const inputs = e.target.parentNode.getElementsByTagName('input');
-    const name = inputs[0].value;
-    if (!name) return;
-    if (name == 'publish') {
+    const title = inputs[0].value;
+    if (!title) return;
+    const shortName = title.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (shortName == 'publish') {
       alert('Article name cannot be "publish".');
       return;
     }
@@ -135,13 +136,13 @@ document.getElementById('newsletters').addEventListener('click', async e => {
     } else {
       contributors = null;
     }
-    const key = `${e.target.parentNode.parentNode.parentNode.dataset.key}_${name}`;
-    const resp = await request('/api/articles', 'POST', { RowKey: key, Contributors: contributors });
+    const key = `${e.target.parentNode.parentNode.parentNode.dataset.key}_${shortName}`;
+    const resp = await request('/api/articles', 'POST', { RowKey: key, Title: title, Contributors: contributors });
     if (!resp.ok) return;
     const li = document.createElement('li');
     const link = key.replace('_', '/');
     const moveArticleButtons = isEditor ? '<a class="moveup">&#9650;</a> <a class="movedown">&#9660;</a>' : '';
-    li.innerHTML = `<span class="status notstarted" title="Not Started"></span><a href="/${link}"><b>${name}</b></a> (${contributors ?? me}) ${moveArticleButtons} <a class="deletearticle">&#10006;</a>`;
+    li.innerHTML = `<span class="status notstarted" title="Not Started"></span><a href="/${link}"><b>${title}</b></a> (${contributors ?? me}) ${moveArticleButtons} <a class="deletearticle">&#10006;</a>`;
     li.dataset.key = key;
     e.target.parentNode.parentNode.insertBefore(li, e.target.parentNode.parentNode.querySelector('.addarticlesection'));
     inputs[0].value = '';

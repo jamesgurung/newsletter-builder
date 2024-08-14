@@ -11,6 +11,7 @@ public class Article : ITableEntity
   public DateTimeOffset? Timestamp { get; set; }
   public ETag ETag { get; set; }
 
+  public string Title { get; set; }
   public string Content { get; set; }
   public string Contributors { get; set; }
   public string Owner { get; set; }

@@ -4,7 +4,7 @@
   var thisOrganisation = Organisation.ByDomain[User.GetDomain()];
 }
 
-<p style="text-align: center; color: grey">Newsletter: <b>@Model.Article.Date</b> &nbsp; Article: <b>@Model.Article.ShortName</b></p>
+<p style="text-align: center; color: grey">Newsletter: <b>@Model.Article.Date</b> &nbsp; Article: <b>@Model.Article.Title</b></p>
 
 <div id="main" style="display: none">
 
@@ -44,7 +44,7 @@
     <li>Aim for at least 3 paragraphs, each paired with a photo. If you have fewer photos, click the &#10006; icons to remove sections.</li>
     <li>Each paragraph should be 1-2 sentences.</li>
     <li>Carefully check your spelling, punctuation, and grammar.</li>
-    <li>Photos must show students, staff, or student work. It is your responsibility to check @Html.Raw(string.IsNullOrEmpty(thisOrganisation.PhotoConsentUrl) ? "photo consent" : $"<a href=\"{thisOrganisation.PhotoConsentUrl}\" target=\"blank\">photo consent</a>"). Do not upload other types of images (e.g. logos or infographics).</li>
+    <li>Photos must show students, staff, or student work. You must check @Html.Raw(string.IsNullOrEmpty(thisOrganisation.PhotoConsentUrl) ? "photo consent" : $"<a href=\"{thisOrganisation.PhotoConsentUrl}\" target=\"blank\">photo consent</a>"). Do not upload other types of images (e.g. infographics or stock photos).</li>
   </ul>
 
   <div id="image-editor">
@@ -75,7 +75,7 @@
   </section>
 </template>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" integrity="sha512-hvNR0F/e2J7zPPfLC9auFe3/SE0yG4aJCOd/qxew74NN7eyiSKjr7xJJMu1Jy2wf7FXITpWS1E/RY8yzuXN7VA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" integrity="sha512-UtLOu9C7NuThQhuXXrGwx9Jb/z9zPQJctuAgNUBK3Z6kkSYT9wJ+2+dh6klS+TDBCV9kNPBbAxbVD+vCcfGPaA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
 @section Scripts {
   <script>
@@ -90,8 +90,8 @@
     const bannedWords = @Html.Raw(thisOrganisation.BannedWords is null ? "[]" : thisOrganisation.BannedWords);
     let coverPhoto = @Html.Raw($"\"{Model.CoverPhoto}\"" ?? "null");
   </script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js" integrity="sha512-9KkIqdfN7ipEW6B6k+Aq20PV31bjODg4AA52W+tYtAE0jE0kMx49bjJ3FgvS56wzmyfMUHbQ4Km2b7l9+Y/+Eg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js" integrity="sha512-7rhBJh1om/W5Ztx7WiYOR9h2wlSaTmPyQMoHFtbT/FVNIA12y6S6I8HY9mrBS1uJ3dSU/R3qaSAXsGYuRjMDxg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" integrity="sha512-JyCZjCOZoyeQZSd5+YEAcFgz2fowJ1F1hyJOXgtKu4llIa0KneLcidn5bwfutiehUTiOuK87A986BZJMko0eWQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js" integrity="sha512-7SRCYIJtR6F8ocwW7UxW6wGKqbSyqREDbfCORCbGLatU0iugBLwyOXpzhkPyHIFdBO0K2VCu57fvP2Twgx1o2A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="/js/shared.js" asp-append-version="true"></script>
   <script src="/js/article.js" asp-append-version="true"></script>
 }

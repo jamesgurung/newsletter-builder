@@ -45,31 +45,31 @@ Here are the steps:
 6. Create an Azure App Service web app, and configure the following settings:
     * `NewsletterEditorUrl` - the URL of the newsletter editor (`https://<your-newsletter-builder-domain>`)
     * `Organisations__0__Name` - the name of your organisation
+    * `Organisations__0__Domain` - the domain for your organisation (`<your-email-domain>`)
     * `Organisations__0__NewsletterUrl` - the URL of the published newsletter (`https://<your-newsletter-domain>`)
     * `Organisations__0__Address` - the address of your organisation
-    * `Organisations__0__TwitterHandle` - the Twitter handle of your organisation, starting with an @ symbol
     * `Organisations__0__Footer` - the footer text to include in emails
     * `Organisations__0__BannedWords` - a JSON array of words which are not allowed in articles
     * `Organisations__0__PhotoConsentUrl` - the URL of the photo consent spreadsheet
     * `Organisations__0__FromEmail` - the email address from which newsletters and reminders will be sent
     * `Organisations__0__QualityAssuranceEmail` - the email address to which quality assurance requests will be sent
     * `Organisations__0__ReminderReplyTo` - the reply-to address for reminders
+    * `Organisations__0__TwitterHandle` - the Twitter handle of your organisation, starting with an @ symbol
     * `Organisations__0__DefaultDeadlineDaysBeforePublish` - the default number of days before the publish date that articles are due
     * `Organisations__0__AzureStorageStaticWebsiteAccountName` - the account name of the storage account where the newsletter static website is hosted
     * `Organisations__0__AzureStorageStaticWebsiteAccountKey` - the account key of the storage account where the newsletter static website is hosted
     * `Organisations__0__Reminders__0__DaysBeforeDeadline` - the number of days before the publish date to send the first reminder (subsequent reminders can be set up by adding additional items with incrementing indices)
-    * `Organisations__0__Reminders__0__Domain` - the domain for which this reminder applies (`<your-email-domain>`)
-    * `Organisations__0__Reminders__0__Message` - the message to include in the reminder email
     * `Organisations__0__Reminders__0__Subject` - the subject of the reminder email
+    * `Organisations__0__Reminders__0__Message` - the message to include in the reminder email
     * `Azure__ClientId` - the client ID of your Azure app registration
     * `Azure__TenantId` - your Azure tenant ID
     * `Azure__StorageAccountName` - the name of your Azure Storage account
     * `Azure__StorageAccountKey` - the key for your Azure Storage account
-    * `Azure__OpenAIEndpoint` - the endpoint of your Azure OpenAI Service GPT-4 deployment
-    * `Azure__OpenAIKey` - the key for your Azure OpenAI Service API
+    * `OpenAI__Model` - the name of the OpenAI model to use
+    * `OpenAI__Key` - your OpenAI API key
     * `PostmarkServerToken` - the token for your Postmark server
     * `AutomationApiKey` - a secret GUID which is used to authenticate requests to the automation API
 
 7. Deploy to the App Service web app you created.
 
-8. Create scheduled tasks to call the `/emailreminders/<your-email-domain>/<n>` endpoints for each reminder you configured, where `<n>` is the index of the reminder.
+8. Create scheduled tasks to call the `/api/automate/emailreminders/<your-email-domain>/<n>` endpoints for each reminder you configured, where `<n>` is the index of the reminder.
