@@ -1,4 +1,4 @@
-const connection = new signalR.HubConnectionBuilder().withUrl('/chat').withAutomaticReconnect().build();
+const connection = new signalR.HubConnectionBuilder().configureLogging(signalR.LogLevel.Warning).withUrl('/chat').withAutomaticReconnect().build();
 connection.start();
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible' && connection.state === signalR.HubConnectionState.Disconnected) await connection.start();

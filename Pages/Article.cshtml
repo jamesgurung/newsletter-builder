@@ -66,10 +66,10 @@
       <label><span>Click to add photo</span><input type="file" accept=".jpg,.jpeg,.png" style="display: none" /></label>
       <div class="set-cover-photo-section"><a class="set-cover-photo">Set as cover photo</a><span class="cover-photo-set"><b>Cover photo set</b></span></div>
       <img />
-      <div class="alt-text" contenteditable="true" data-placeholder="Type a short description of the photo (for users with screen readers)" data-maxlength="60"></div>
+      <div class="alt-text" contenteditable="true" data-placeholder="Type a short description of the photo (for users with screen readers)" data-maxlength="120"></div>
       <div class="consent"><label><input type="checkbox" /> All students have photo consent</label></div>
       <div class="consent-notes" contenteditable="true" data-placeholder="Which students need to be blurred? Describe their positions in the photo." data-maxlength="300"></div>
-      <div class="clear-image-section"><a class="clear-image">Clear image</a></div>
+      <div class="clear-image-section"><span class="approve-image-section"><a class="approve-image">Approve</a> | </span><a class="clear-image">Clear image</a></div>
     </div>
     <div class="section-menu"><a class="section-delete" title="Delete section">&#10006;</a></div>
   </section>
@@ -82,6 +82,7 @@
     const isEditor = @Model.IsEditor.ToString().ToLowerInvariant();
     const isOwner = @Model.IsOwner.ToString().ToLowerInvariant();
     const articleKey = '@Model.Article.RowKey';
+    const isIntro = @((Model.Article.Title == "Intro").ToString().ToLowerInvariant());
     let content = @Html.Raw(Model.Article.Content ?? "null");
     let isSubmitted = @Model.Article.IsSubmitted.ToString().ToLowerInvariant();
     let isApproved = @Model.Article.IsApproved.ToString().ToLowerInvariant();

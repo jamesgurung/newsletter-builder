@@ -184,13 +184,26 @@ a.delete, a.deletearticle, a.approve, a.moveup, a.movedown, a.publish, a.view {
   margin-bottom: 6px;
 }
 
-.alt-text, .consent, .consent-notes {
+.alt-text, .alt-text-loading, .consent, .consent-notes {
   padding: 6px;
   text-align: center;
 }
 
 .alt-text {
   font-style: italic;
+}
+
+.alt-text.alt-text-loading {
+  color: grey;
+  font-style: normal;
+  margin-bottom: 8px;
+}
+
+.alt-text.alt-text-error {
+  color: red;
+  font-weight: bold;
+  font-style: normal;
+  margin-bottom: 8px;
 }
 
 .clear-image-section, .set-cover-photo-section {

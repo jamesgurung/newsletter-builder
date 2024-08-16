@@ -113,7 +113,7 @@
 
 <template id="addarticletemplate">
   <li class="addarticlesection">
-    <input pattern="[a-z0-9A-Z' \-]+" class="articlename" placeholder="Article Name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-bottom: 3px; margin-right: 6px" />
+    <input pattern="[a-z0-9A-Z' \-:&]+" class="articlename" placeholder="Article Name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-bottom: 3px; margin-right: 6px" />
     @if (isEditor)
     {
       <input pattern="[a-z0-9'.,\-]+" class="articlecontributors" placeholder="Contributors" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-right: 6px" />

@@ -24,11 +24,7 @@ builder.Services.AddAntiforgery(options => { options.HeaderName = "X-XSRF-TOKEN"
 builder.Services.Configure<RouteOptions>(options => { options.LowercaseUrls = true; });
 builder.Services.AddRazorPages(options => { options.Conventions.AllowAnonymousToFolder("/auth"); });
 
-builder.Services.AddHttpClient("AzureOpenAI", options => {
-  options.DefaultRequestHeaders.Add("Authorization", "Bearer " + builder.Configuration["OpenAI:Key"]);
-  options.BaseAddress = new Uri("https://api.openai.com/v1/chat/completions");
-});
-ChatGPT.ModelName = builder.Configuration["OpenAI:Model"];
+ChatGPT.Configure(builder.Configuration["OpenAI:Key"], builder.Configuration["OpenAI:Model"]);
 
 builder.Services.AddSignalR();
 

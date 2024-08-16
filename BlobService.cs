@@ -14,14 +14,14 @@ public class BlobService(string domain)
   public static void Configure(string connectionString, string accountKey)
   {
     client = new BlobServiceClient(connectionString);
-    storageAccountKey = accountKey;
+    credential = new StorageSharedKeyCredential(client.AccountName, accountKey);
     Uri = client.Uri.ToString();
   }
 
   public static string Uri { get; private set; }
 
   private static BlobServiceClient client;
-  private static string storageAccountKey;
+  private static StorageSharedKeyCredential credential;
   private static readonly JsonSerializerOptions jsonOptions = new() { WriteIndented = true };
 
   public async Task UploadImageAsync(string articleKey, string imageName, Stream stream) {
@@ -78,7 +78,22 @@ public class BlobService(string domain)
       Protocol = SasProtocol.Https
     };
     builder.SetPermissions(BlobSasPermissions.Read);
-    return builder.ToSasQueryParameters(new StorageSharedKeyCredential(client.AccountName, storageAccountKey)).ToString();
+    return builder.ToSasQueryParameters(credential).ToString();
+  }
+
+  public string GetSasQueryString(string articleKey, string imageName)
+  {
+    var builder = new BlobSasBuilder()
+    {
+      BlobContainerName = "photos",
+      BlobName = $"{domain}/{articleKey}/{imageName}",
+      Resource = "b",
+      StartsOn = DateTime.UtcNow.AddMinutes(-2),
+      ExpiresOn = DateTime.UtcNow.AddMinutes(5),
+      Protocol = SasProtocol.Https
+    };
+    builder.SetPermissions(BlobSasPermissions.Read);
+    return builder.ToSasQueryParameters(credential).ToString();
   }
 
   public async Task<bool> ImageExistsAsync(string articleKey, string imageName)

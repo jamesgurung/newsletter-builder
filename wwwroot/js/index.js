@@ -118,7 +118,7 @@ document.getElementById('newsletters').addEventListener('click', async e => {
     const inputs = e.target.parentNode.getElementsByTagName('input');
     const title = inputs[0].value;
     if (!title) return;
-    const shortName = title.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const shortName = title.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
     if (shortName == 'publish') {
       alert('Article name cannot be "publish".');
       return;

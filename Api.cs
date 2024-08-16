@@ -301,6 +301,20 @@ public static class Api
       return Results.Ok(imageName);
     });
 
+    group.MapPost("/articles/{key}/image/{imageName}/describe", async (string key, string imageName, HttpContext context) =>
+    {
+      var domain = context.User.GetDomain();
+      var tableService = new TableService(domain);
+      var article = await tableService.GetArticleAsync(key);
+      if (article is null) return Results.NotFound("Article not found.");
+      if (!context.User.IsInRole(Roles.Editor) && (!article.ContributorList.Contains(context.User.GetUsername()) || article.IsSubmitted)) return Results.Forbid();
+      var blobService = new BlobService(domain);
+      var sas = blobService.GetSasQueryString(key, imageName);
+      var imageUrl = $"{BlobService.Uri}photos/{domain}/{key}/{imageName}?{sas}";
+      var description = await ChatGPT.DescribePhotoAsync(new Uri(imageUrl), article.Title, key);
+      return Results.Ok(description);
+    });
+
     group.MapDelete("/articles/{key}/image/{imageName}", async (string key, string imageName, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
@@ -363,10 +377,10 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapPost("/aifeedback", async (ArticleFeedbackRequest feedbackRequest, IHttpClientFactory httpClientFactory, IHubContext<ChatHub, IChatClient> hubContext) =>
+    group.MapPost("/aifeedback", async (ArticleFeedbackRequest feedbackRequest, IHubContext<ChatHub, IChatClient> hubContext) =>
     {
-      var chat = new ChatGPT(httpClientFactory.CreateClient("AzureOpenAI"), hubContext.Clients, feedbackRequest.ConnectionId);
-      var response = await chat.RequestArticleFeedbackAsync(feedbackRequest.Headline, feedbackRequest.Content, feedbackRequest.Identifier);
+      var response = await ChatGPT.RequestArticleFeedbackAsync(feedbackRequest.Headline, feedbackRequest.Content, feedbackRequest.Identifier,
+        hubContext.Clients, feedbackRequest.ConnectionId);
       return Results.Ok(response);
     });
 

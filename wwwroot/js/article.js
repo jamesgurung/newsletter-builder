@@ -15,7 +15,7 @@ if (content) {
     addSection(section.includeImage, section.text, section.image, section.alt, section.consent, section.consentNotes);
   }
 } else {
-  if (articleKey.substring(11) === 'intro') {
+  if (isIntro) {
     addSection(false);
   } else {
     addSection(true); addSection(true); addSection(true);
@@ -57,24 +57,35 @@ function addSection(includeImage, text, image, alt, consent, consentNotes) {
 }
 
 function setImage(el, image, alt, consent, consentNotes) {
-  if (image) {
-    [...el.children].forEach(c => c.style.display = null);
-    el.dataset.image = image;
-    el.getElementsByTagName('img')[0].src = `${blobBaseUrl}${domain}/${articleKey}/${image}?${sas}`;
-    el.getElementsByTagName('label')[0].style.display = 'none';
-    el.getElementsByClassName('set-cover-photo-section')[0].style.display = 'none';
-    el.querySelector('input[type="checkbox"]').checked = consent;
-    el.querySelector('.consent-notes').style.display = consent ? 'none' : null;
-    if (alt) el.querySelector('.alt-text').innerText = alt;
-    if (consentNotes) el.querySelector('.consent-notes').innerText = consentNotes;
-  } else {
-    [...el.children].forEach(c => c.style.display = 'none');
-    el.dataset.image = '';
-    el.getElementsByTagName('label')[0].style.display = null;
-    el.querySelector('.alt-text').innerText = '';
-    el.querySelector('input[type="checkbox"]').checked = false;
-    el.querySelector('.consent-notes').innerText = '';
-  }
+  const uploadElement = el.querySelector('label');
+  const imageElement = el.querySelector('img');
+  const altTextElement = el.querySelector('.alt-text');
+  const consentAreaElement = el.querySelector('.consent');
+  const consentElement = el.querySelector('input[type="checkbox"]');
+  const consentNotesElement = el.querySelector('.consent-notes');
+  const clearElement = el.querySelector('.clear-image-section');
+  const approveElement = el.querySelector('.approve-image-section');
+  const setCoverPhotoElement = el.querySelector('.set-cover-photo-section');
+  const isGenerating = alt === 'generating';
+  const isInvalid = alt === 'invalid';
+
+  el.dataset.image = image ?? '';
+
+  uploadElement.style.display = image ? 'none' : null;
+  imageElement.src = image ? `${blobBaseUrl}${domain}/${articleKey}/${image}?${sas}` : '';
+  imageElement.style.display = image ? null : 'none';
+  altTextElement.contentEditable = !isGenerating && !isInvalid;
+  altTextElement.className = isGenerating ? 'alt-text alt-text-loading' : (isInvalid ? 'alt-text alt-text-error' : 'alt-text');
+  if (isGenerating) altTextElement.innerHTML = '<div class="typing" title="Generating caption..."><span></span><span></span><span></span></div>';
+  else altTextElement.innerText = isInvalid ? 'Only photos of students, staff, or student work are accepted. Please upload a different photo.' : (alt ?? '');
+  altTextElement.style.display = image ? null : 'none';
+  consentAreaElement.style.display = image && !isGenerating && !isInvalid ? null : 'none';
+  consentElement.checked = image ? consent : false;
+  consentNotesElement.style.display = image && !isGenerating && !isInvalid && !consent ? null : 'none';
+  consentNotesElement.innerText = image ? (consentNotes ?? '') : '';
+  clearElement.style.display = image && !isGenerating ? null : 'none';
+  approveElement.style.display = image && isInvalid && isEditor ? null : 'none';
+  setCoverPhotoElement.style.display = 'none';
 }
 
 // Configure input constraints and autosave
@@ -86,7 +97,10 @@ async function save() {
       const imageSection = el.getElementsByClassName('section-image')[0];
       const includeImage = el.dataset.includeimage === 'true';
       const imageUrl = includeImage && imageSection.dataset.image ? imageSection.dataset.image : null;
-      const altText = imageUrl ? imageSection.querySelector('.alt-text').innerText : null;
+      const alt = imageSection.querySelector('.alt-text');
+      const isInvalidImage = alt.classList.contains('alt-text-error');
+      const isAltTextLoading = alt.classList.contains('alt-text-loading');
+      const altText = imageUrl ? (isInvalidImage ? 'invalid' : (isAltTextLoading ? '' : alt.innerText)) : null;
       const consent = imageUrl ? imageSection.querySelector('input[type="checkbox"]').checked : false;
       const consentNotes = (!imageUrl || consent) ? null : imageSection.querySelector('.consent-notes').innerText;
       return {
@@ -174,9 +188,15 @@ article.addEventListener('click', async e => {
     await request(`/api/articles/${articleKey}/image/${imageName}`, 'DELETE');
     await save();
   }
+  else if (e.target.classList.contains('approve-image')) {
+    const imageSection = e.target.closest('.section-image');
+    const imageName = imageSection.dataset.image;
+    setImage(imageSection, imageName);
+    await save();
+  }
   else if (e.target.classList.contains('set-cover-photo')) {
     const imageSection = e.target.closest('.section-image');
-    coverPhoto = imageSection.dataset.image;
+    const imageName = imageSection.dataset.image;
     await request(`/api/newsletters/${articleKey.slice(0, 10)}/coverphoto`, 'PUT', { ArticleKey: articleKey, ImageName: coverPhoto });
     updateCoverPhotoLinks();
   }
@@ -185,17 +205,18 @@ article.addEventListener('click', async e => {
 // Submit article
 
 function isValid(verb) {
-  if (!content) { alert('Unable to ' + verb + ': Article is blank.'); return false; }
-  if (!content.headline) { alert('Unable to ' + verb + ': Headline required.'); return false; }
-  if (!content.sections.length) { alert('Unable to ' + verb + ': Article must have at least one paragraph.'); return false; }
-  if (content.sections.some(s => !s.text)) { alert('Unable to ' + verb + ': Article cannot contain empty paragraphs.'); return false; }
-  if (content.sections.some(s => s.text.length < 40)) { alert('Unable to ' + verb + ': Paragraphs must be at least 40 characters.'); return false; }
-  if (content.sections.some(s => s.text.length > 500)) { alert('Unable to ' + verb + ': Paragraphs must be no longer than 500 characters.'); return false; }
-  if (content.sections.some(s => s.includeImage && !s.image)) { alert('Unable to ' + verb + ': All paragraphs must contain a photo.'); return false; }
-  if (content.sections.some(s => s.includeImage && !s.alt)) { alert('Unable to ' + verb + ': All photos must include a description.'); return false; }
-  if (content.sections.some(s => s.includeImage && !s.consent && !s.consentNotes)) { alert('Unable to ' + verb + ': All photos must be ticked for photo consent, or contain details about which students do not consent.'); return false; }
+  if (!content) { alert(`Unable to ${verb}: Article is blank.`); return false; }
+  if (!content.headline) { alert(`Unable to ${verb}: Headline required.`); return false; }
+  if (!content.sections.length) { alert(`Unable to ${verb}: Article must have at least one paragraph.`); return false; }
+  if (content.sections.some(s => !s.text)) { alert(`Unable to ${verb}: Article cannot contain empty paragraphs.`); return false; }
+  if (content.sections.some(s => s.text.length < 40)) { alert(`Unable to ${verb}: Paragraphs must be at least 40 characters.`); return false; }
+  if (content.sections.some(s => s.text.length > 500)) { alert(`Unable to ${verb}: Paragraphs must be no longer than 500 characters.`); return false; }
+  if (content.sections.some(s => s.includeImage && !s.image)) { alert(`Unable to ${verb}: All paragraphs must contain a photo.`); return false; }
+  if (content.sections.some(s => s.includeImage && s.alt === 'invalid')) { alert(`Unable to ${verb}: All photos must be of students, staff, or student work.`); return false; }
+  if (content.sections.some(s => s.includeImage && !s.alt)) { alert(`Unable to ${verb}: All photos must include a description.`); return false; }
+  if (content.sections.some(s => s.includeImage && !s.consent && !s.consentNotes)) { alert(`Unable to ${verb}: All photos must be ticked for photo consent, or contain details about which students do not consent.`); return false; }
   for (const word of bannedWords) {
-    if (content.sections.some(s => s.text.toLowerCase().includes(word))) { alert(`Unable to ' + verb + ': Avoid using the word "${word}".`); return false; }
+    if (content.sections.some(s => s.text.toLowerCase().includes(word))) { alert(`Unable to ${verb}: Avoid using the word "${word}".`); return false; }
   }
   return true;
 }
@@ -361,8 +382,15 @@ async function uploadImage(blob, type) {
   currentImageInputElement.value = null;
   const imageUrl = await resp.json();
   const imageSection = currentImageInputElement.closest('.section-image');
-  setImage(imageSection, imageUrl);
-  if (!await save()) return;
+  setImage(imageSection, imageUrl, 'generating');
+  const describeResp = await request(`/api/articles/${articleKey}/image/${imageUrl}/describe`, 'POST');
+  if (describeResp.ok) {
+    const description = await describeResp.json();
+    setImage(imageSection, imageUrl, description);
+  } else {
+    setImage(imageSection, imageUrl);
+  }
+  await save();
 }
 
 // Cover photo
@@ -382,7 +410,7 @@ function updateCoverPhotoLinks() {
 
 // AI feedback
 
-const connection = new signalR.HubConnectionBuilder().withUrl('/chat').withAutomaticReconnect().build();
+const connection = new signalR.HubConnectionBuilder().configureLogging(signalR.LogLevel.Warning).withUrl('/chat').withAutomaticReconnect().build();
 connection.start();
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible' && connection.state === signalR.HubConnectionState.Disconnected) await connection.start();

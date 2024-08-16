@@ -1,44 +1,74 @@
-﻿using Microsoft.AspNetCore.SignalR;
-using System.Text;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.SignalR;
+using OpenAI.Chat;
 
 namespace NewsletterBuilder;
 
-public class ChatGPT(HttpClient client, IHubClients<IChatClient> hub, string chatId)
+public static class ChatGPT
 {
-  public static string ModelName { get; set; }
-
-  public async Task<string> RequestArticleFeedbackAsync(string headline, string text, string identifier)
+  public static void Configure(string apiKey, string modelName)
   {
-
-    var prompt1 = $"This article is part of a weekly Academy newsletter. It is intended to engage parents, promote a positive culture, " +
-      $"and showcase our enriching student experience.\n\n" +
-      $"Headline:\n{headline}\n\n" +
-      $"Article content:\n{text}\n\n" +
-      $"###\n" +
-      $"Review the spelling, punctuation, and grammar. If it is all correct, write a single bullet point to praise it. " +
-      $"Otherwise, use bullet points to state each of the mistakes and how to fix them. Do not give stylistic feedback; " +
-      $"only correct mistakes that are clearly wrong.";
-
-    var prompt2 = "Answer the following questions about the article:\n" +
-      $"* How engaging is the headline? Suggest three alternative suggestions as a comma-separated list.\n" +
-      $"* Provide positive feedback on the article, giving this praise in a warm tone.\n" +
-      $"* Provide constructive feedback on the content of the article, not mentioning spelling, punctuation, or grammar. How could it be better? Do not suggest including quotes.\n" +
-      $"* Provide feedback on the writing style (it should be a balance of professional and casual, upbeat, and highly engaging). " +
-      $"Give examples of how parts could be reworded, if this is needed.";
-
-    var spagResponse = await SendGptRequestAsync([new() { Role = "user", Content = prompt1 }], 0m, identifier);
-    var reviewPrompts = new List<ChatGPTMessage>() {
-      new() { Role = "user", Content = prompt1 },
-      new() { Role = "assistant", Content = spagResponse },
-      new() { Role = "user", Content = prompt2 }
-    };
-    var reviewResponse = await SendGptRequestAsync(reviewPrompts, 0.2m, identifier);
-    return $"{spagResponse}\n{reviewResponse}";
+    _client = new ChatClient(modelName, apiKey);
   }
 
-  private async Task<string> SendGptRequestAsync(List<ChatGPTMessage> prompts, decimal temperature, string identifier) {
+  private static ChatClient _client;
+
+  private static readonly string[] photoTypes = ["people", "student work", "other"];
+
+  private static readonly ChatTool describePhotoTool = ChatTool.CreateFunctionTool("describe_photo", null, BinaryData.FromObjectAsJson(new
+  {
+    Type = "object",
+    Properties = new
+    {
+      AltText = new
+      {
+        Type = "string",
+        Description = "Very short description of what is in the photo, to be included as alt text for screen readers."
+      },
+      Subject = new
+      {
+        Type = "string",
+        Enum = photoTypes,
+        Description = "Categorise the subject of the photo. If it shows one or more students or teachers, say 'people'. If it shows student work, for example artwork or an exercise book, " +
+        "say 'student work'. For anything else, say 'other'."
+      }
+    },
+    Required = new[] { "AltText", "Subject" }
+  }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+
+  public static async Task<string> DescribePhotoAsync(Uri photoUri, string title, string identifier)
+  {
+    var messages = new List<ChatMessage>
+    {
+      new SystemChatMessage("You are a helpful assistant who describes photographs. Be very brief, answering in a few words only. " +
+        "The photographs are for use in an Academy newsletter, and may include students, staff, or student work. When referring to people, " +
+        "use educational terms like 'teacher' and 'student'. Use the article topic to put the description in context. Use British English spelling."),
+      new UserChatMessage(
+        ChatMessageContentPart.CreateTextMessageContentPart($"This photo is from an article on {title}. What does it show?"),
+        ChatMessageContentPart.CreateImageMessageContentPart(photoUri, ImageChatMessageContentPartDetail.Low)
+      )
+    };
+
+    var options = new ChatCompletionOptions
+    {
+      Temperature = 0,
+      User = identifier,
+      Tools = { describePhotoTool },
+      ToolChoice = new(describePhotoTool)
+    };
+
+    var response = await _client.CompleteChatAsync(messages, options);
+    if (response?.Value is null) return null;
+    var args = response.Value.ToolCalls[0].FunctionArguments;
+    var data = JsonSerializer.Deserialize<AIPhotoResponse>(args);
+    return (data.Subject == "other") ? "invalid" : data.AltText.TrimEnd('.');
+  }
+
+  public static async Task<string> RequestArticleFeedbackAsync(string headline, string text, string identifier, IHubClients<IChatClient> hub, string chatId)
+  {
+    ArgumentNullException.ThrowIfNull(hub);
+
     var systemPrompt = "You are a friendly and helpful assistant. " +
       "You always respond in bullet points, using a '*' character, with no introduction. " +
       "You do not use subheadings or bullet point headings. " +
@@ -48,88 +78,51 @@ public class ChatGPT(HttpClient client, IHubClients<IChatClient> hub, string cha
       "You do not comment on date formats. " +
       "You do not comment on photos or captions. " +
       "You use British English and approve of the Oxford comma.";
-    prompts.Insert(0, new() { Role = "system", Content = systemPrompt });
 
-    var request = new ChatGPTRequest
+    var spagPrompt = "This article is part of a weekly Academy newsletter. It is intended to engage parents, promote a positive culture, " +
+      "and showcase our enriching student experience.\n\n" +
+      $"Headline:\n{headline}\n\n" +
+      $"Article content:\n{text}\n\n" +
+      "###\n" +
+      "Review the spelling, punctuation, and grammar. If it is all correct, write a single bullet point to praise it. " +
+      "Otherwise, use bullet points to state each of the mistakes and how to fix them. Do not give stylistic feedback; " +
+      "only correct mistakes that are clearly wrong.";
+
+    var stylePrompt = "Answer the following questions about the article:\n" +
+      "* How engaging is the headline? Suggest three alternative suggestions as a comma-separated list.\n" +
+      "* Provide positive feedback on the article, giving this praise in a warm tone.\n" +
+      "* Provide constructive feedback on the content of the article, not mentioning spelling, punctuation, or grammar. How could it be better? Do not suggest including quotes.\n" +
+      "* Provide feedback on the writing style (it should be a balance of professional and casual, upbeat, and highly engaging). " +
+      "Give a few examples of how parts could be reworded, if this is needed.";
+
+    var spagResponse = await CompleteChatStreamingAsync([new SystemChatMessage(systemPrompt), new UserChatMessage(spagPrompt)], new() { Temperature = 0, User = identifier });
+
+    var styleResponse = await CompleteChatStreamingAsync([new SystemChatMessage(systemPrompt), new UserChatMessage(spagPrompt), new AssistantChatMessage(spagResponse),
+      new UserChatMessage(stylePrompt)], new() { Temperature = 0.2f, User = identifier });
+
+    return $"{spagResponse}\n{styleResponse}";
+
+    async Task<string> CompleteChatStreamingAsync(IEnumerable<ChatMessage> messages, ChatCompletionOptions options)
     {
-      User = identifier,
-      Temperature = temperature,
-      Choices = 1,
-      Stream = true,
-      Messages = prompts,
-      Model = ModelName
-    };
-    for (var attempt = 1; attempt <= 3; attempt++)
-    {
-      using var body = JsonContent.Create(request);
-      using var message = new HttpRequestMessage(HttpMethod.Post, string.Empty) { Content = body };
-      using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead);
-      if (!response.IsSuccessStatusCode)
+      var text = string.Empty;
+      await foreach (var update in _client.CompleteChatStreamingAsync(messages, options))
       {
-        await Task.Delay(1000 * (int)Math.Pow(2, attempt));
-        continue;
+        foreach (var part in update.ContentUpdate)
+        {
+          if (string.IsNullOrEmpty(part.Text)) continue;
+          text += part.Text;
+          await hub.Client(chatId).Type(part.Text);
+        }
       }
-      using var stream = await response.Content.ReadAsStreamAsync();
-      using var reader = new StreamReader(stream);
-      var content = new StringBuilder();
-      while (!reader.EndOfStream)
-      {
-        var line = await reader.ReadLineAsync();
-        if (string.IsNullOrEmpty(line) || !line.StartsWith("data: ", StringComparison.Ordinal)) continue;
-        if (line == "data: [DONE]") break;
-        var chunk = JsonSerializer.Deserialize<ChatGPTResponse>(line[6..]);
-        if (chunk?.Value is null) continue;
-        content.Append(chunk.Value);
-        await hub.Client(chatId).Type(chunk.Value);
-      }
-      return content.ToString();
+      return text;
     }
-    throw new HttpRequestException("GPT request failed.");
   }
 }
 
-public class ChatGPTRequest
+public class AIPhotoResponse
 {
-  [JsonPropertyName("messages")]
-  public IList<ChatGPTMessage> Messages { get; set; }
-  [JsonPropertyName("user")]
-  public string User { get; set; }
-  [JsonPropertyName("temperature")]
-  public decimal Temperature { get; set; }
-  [JsonPropertyName("n")]
-  public decimal Choices { get; set; }
-  [JsonPropertyName("stream")]
-  public bool Stream { get; set; }
-  [JsonPropertyName("model")]
-  public string Model { get; set; }
-}
-
-public class ChatGPTMessage
-{
-  [JsonPropertyName("role")]
-  public string Role { get; set; }
-  [JsonPropertyName("content")]
-  public string Content { get; set; }
-}
-
-
-public class ChatGPTResponse
-{
-  [JsonPropertyName("choices")]
-  public IList<ChatGPTResponseChoice> Choices { get; set; }
-
-  [JsonIgnore]
-  public string Value => Choices?[0].Delta?.Content;
-}
-
-public class ChatGPTResponseChoice
-{
-  [JsonPropertyName("delta")]
-  public ChatGPTResponseMessage Delta { get; set; }
-}
-
-public class ChatGPTResponseMessage
-{
-  [JsonPropertyName("content")]
-  public string Content { get; set; }
+  [JsonPropertyName("altText")]
+  public string AltText { get; set; }
+  [JsonPropertyName("subject")]
+  public string Subject { get; set; }
 }
