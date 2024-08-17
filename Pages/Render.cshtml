@@ -79,7 +79,7 @@
       margin: 0 0 18px 30px; padding: 0;
     }
     ul.events {
-      margin: 24px 0 18px 30px; margin-bottom: 36px;
+      margin: 18px 0 18px 36px;
     }
     li {
       font-family: arial, helvetica, sans-serif; font-size:14px; line-height: 22px; color: #555; margin: 0 0 4px 0; padding: 0;
@@ -128,7 +128,7 @@
           {
           @if (article.ShortName != "intro")
           {
-          <h2>@Html.Raw(IfBlank(article.Content.Headline, article.ShortName).Replace(" - ", " &ndash; "))</h2>
+          <h2>@Html.Raw(IfBlank(article.Content.Headline, article.Title).Replace(" - ", " &ndash; "))</h2>
           }
           @for (var i = 0; i < article.Content.Sections.Count; i++)
           {
@@ -148,6 +148,7 @@
           }
 
           <h2>Upcoming Events</h2>
+          <!--[if mso]><div style="font-size:12px">&#8203;</div><![endif]-->
           <ul class="events">
           @foreach (var ev in Model.Events) {
             <li><b>@ev.DisplayDate</b> - @ev.DisplayTitle</li>

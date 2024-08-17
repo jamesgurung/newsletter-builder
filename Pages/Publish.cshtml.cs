@@ -31,7 +31,10 @@ public class PublishPageModel() : PageModel
     Description = newsletter.Description;
     if (Description is null) {
       var textInfo = CultureInfo.InvariantCulture.TextInfo;
-      var articleOrder = newsletter.ArticleOrder.Split(',').Select(textInfo.ToTitleCase).ToList();
+      var unlisted = Organisation.ByDomain[domain].UnlistedArticles ?? [];
+      var articleOrder = newsletter.ArticleOrder.Split(',')
+        .Where(o => !unlisted.Contains(o, StringComparer.OrdinalIgnoreCase))
+        .Select(o => articles.FirstOrDefault(a => a.ShortName == o)?.Title).Where(o => o is not null).ToList();
       Description = articleOrder switch
       {
         [] => string.Empty,

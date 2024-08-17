@@ -23,8 +23,6 @@ public class ArticleSection
   public string Alt { get; init; }
   [JsonPropertyName("consent")]
   public bool Consent { get; init; }
-  [JsonPropertyName("consentNotes")]
-  public string ConsentNotes { get; init; }
   [JsonIgnore, IgnoreDataMember]
   public string ImageRenderName { get; set; }
 }

@@ -2,7 +2,6 @@
 
 const article = document.getElementsByTagName('article')[0];
 const headline = document.getElementById('headline');
-const prevVals = [];
 const invalidCharacters = /[^A-Za-z0-9\[\]\*!"£$%&();:',.=_#@\/?\s\u00E0\u00E2\u00E6\u00E7\u00E9\u00E8\u00EA\u00EB\u00EE\u00EF\u00F4\u0153\u00F9\u00FB\u00FC\u00FF\u00C0\u00C2\u00C6\u00C7\u00C9\u00C8\u00CA\u00CB\u00CE\u00CF\u00D4\u0152\u00D9\u00DB\u00DC\u0178\u00A1\u00BF\+-]+/g;
 const invalidWhitespace = /[\f\t\v\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]/g;
 const repeatedSpaces = /\s\s+/g;
@@ -10,14 +9,13 @@ const repeatedSpaces = /\s\s+/g;
 let inputsIdx = 0;
 let saved = true;
 let typing = false;
-let aiDisabled = false;
 
 // Load article
 
 if (content) {
   headline.innerText = content.headline;
   for (const section of content.sections) {
-    addSection(section.includeImage, section.text, section.image, section.alt, section.consent, section.consentNotes);
+    addSection(section.includeImage, section.text, section.image, section.alt, section.consent);
   }
 } else {
   if (isIntro) {
@@ -25,7 +23,6 @@ if (content) {
   } else {
     addSection(true); addSection(true); addSection(true);
   }
-  document.getElementById('aiwriting').style.display = null;
 }
 configureInput([document.getElementById('headline')]);
 if (isSubmitted) {
@@ -39,7 +36,7 @@ updateCoverPhotoLinks();
 
 // Add section
 
-function addSection(includeImage, text, image, alt, consent, consentNotes) {
+function addSection(includeImage, text, image, alt, consent) {
   const section = document.getElementById('sectiontemplate').content.cloneNode(true)
   article.appendChild(section);
   article.lastElementChild.dataset.includeimage = includeImage ? 'true' : 'false';
@@ -51,24 +48,22 @@ function addSection(includeImage, text, image, alt, consent, consentNotes) {
     imageElement.getElementsByTagName('input')[0].addEventListener('change', onSelectImage);
     const checkbox = imageElement.querySelector('input[type="checkbox"]');
     checkbox.addEventListener('change', async e => {
-      e.target.closest('.section-image').getElementsByClassName('consent-notes')[0].style.display = e.target.checked ? 'none' : null;
       if (!await save()) return;
       flash(e.target.parentNode.parentNode);
     });
-    configureInput([imageElement.querySelector('.alt-text'), imageElement.querySelector('.consent-notes')]);
-    setImage(imageElement, image, alt, consent, consentNotes);
+    configureInput([imageElement.querySelector('.alt-text')]);
+    setImage(imageElement, image, alt, consent);
   } else {
     imageElement.remove();
   }
 }
 
-function setImage(el, image, alt, consent, consentNotes) {
+function setImage(el, image, alt, consent) {
   const uploadElement = el.querySelector('label');
   const imageElement = el.querySelector('img');
   const altTextElement = el.querySelector('.alt-text');
   const consentAreaElement = el.querySelector('.consent');
   const consentElement = el.querySelector('input[type="checkbox"]');
-  const consentNotesElement = el.querySelector('.consent-notes');
   const clearElement = el.querySelector('.clear-image-section');
   const approveElement = el.querySelector('.approve-image-section');
   const setCoverPhotoElement = el.querySelector('.set-cover-photo-section');
@@ -87,8 +82,6 @@ function setImage(el, image, alt, consent, consentNotes) {
   altTextElement.style.display = image ? null : 'none';
   consentAreaElement.style.display = image && !isGenerating && !isInvalid ? null : 'none';
   consentElement.checked = image ? consent : false;
-  consentNotesElement.style.display = image && !isGenerating && !isInvalid && !consent ? null : 'none';
-  consentNotesElement.innerText = image ? (consentNotes ?? '') : '';
   clearElement.style.display = image && !isGenerating ? null : 'none';
   approveElement.style.display = image && isInvalid && isEditor ? null : 'none';
   setCoverPhotoElement.style.display = 'none';
@@ -108,20 +101,17 @@ async function save() {
       const isAltTextLoading = alt.classList.contains('alt-text-loading');
       const altText = imageUrl ? (isInvalidImage ? 'invalid' : (isAltTextLoading ? '' : alt.innerText)) : null;
       const consent = imageUrl ? imageSection.querySelector('input[type="checkbox"]').checked : false;
-      const consentNotes = (!imageUrl || consent) ? null : imageSection.querySelector('.consent-notes').innerText;
       return {
         text: el.getElementsByClassName('section-text')[0].innerText,
         includeImage: includeImage,
         image: imageUrl,
         alt: altText ? altText : null,
-        consent: consent,
-        consentNotes: consentNotes ? consentNotes : null
+        consent: consent
       };
     })
   };
   const resp = await request(`/api/articles/${articleKey}/content`, 'PUT', content);
   if (resp.ok) document.getElementById('requestaifeedback').classList.remove('disabled');
-  if (!aiDisabled) document.querySelector('#aiwriting').style.display = (content.headline === '' && content.sections.every(s => s.text === '' && s.image === null)) ? '' : 'none';
   return resp.ok;
 }
 
@@ -195,6 +185,11 @@ article.addEventListener('click', async e => {
     await request(`/api/articles/${articleKey}/image/${imageName}`, 'DELETE');
     await save();
   }
+  else if (e.target.classList.contains('blur-start')) {
+    const imageSection = e.target.closest('.section-image');
+    const imageName = imageSection.dataset.image;
+    openBlurPanel(imageSection, imageName);
+  }
   else if (e.target.classList.contains('approve-image')) {
     const imageSection = e.target.closest('.section-image');
     const imageName = imageSection.dataset.image;
@@ -202,8 +197,7 @@ article.addEventListener('click', async e => {
     await save();
   }
   else if (e.target.classList.contains('set-cover-photo')) {
-    const imageSection = e.target.closest('.section-image');
-    const imageName = imageSection.dataset.image;
+    coverPhoto = e.target.closest('.section-image').dataset.image;
     await request(`/api/newsletters/${articleKey.slice(0, 10)}/coverphoto`, 'PUT', { ArticleKey: articleKey, ImageName: coverPhoto });
     updateCoverPhotoLinks();
   }
@@ -221,7 +215,7 @@ function isValid(verb) {
   if (content.sections.some(s => s.includeImage && !s.image)) { alert(`Unable to ${verb}: All paragraphs must contain a photo.`); return false; }
   if (content.sections.some(s => s.includeImage && s.alt === 'invalid')) { alert(`Unable to ${verb}: All photos must be of students, staff, or student work.`); return false; }
   if (content.sections.some(s => s.includeImage && !s.alt)) { alert(`Unable to ${verb}: All photos must include a description.`); return false; }
-  if (content.sections.some(s => s.includeImage && !s.consent && !s.consentNotes)) { alert(`Unable to ${verb}: All photos must be ticked for photo consent, or contain details about which students do not consent.`); return false; }
+  if (content.sections.some(s => s.includeImage && !s.consent)) { alert(`Unable to ${verb}: All photos must be ticked for photo consent. You can blur faces if needed.`); return false; }
   for (const word of bannedWords) {
     if (content.sections.some(s => s.text.toLowerCase().includes(word))) { alert(`Unable to ${verb}: Avoid using the word "${word}".`); return false; }
   }
@@ -257,7 +251,7 @@ if (isEditor) {
       button.classList.remove('disabled');
       button.style.cursor = '';
       isApproved = false;
-      [...document.querySelectorAll('#headline,.section-text,.alt-text,.consent-notes')].forEach(el => el.contentEditable = true);
+      [...document.querySelectorAll('#headline,.section-text,.alt-text')].forEach(el => el.contentEditable = true);
       [...document.querySelectorAll('.section-delete,.clear-image,#addsectioncontainer,#submit')].forEach(el => el.style.display = '');
       [...document.querySelectorAll('.section-text,.section-image,#headline')].forEach(el => el.style.border = '');
       [...document.querySelectorAll('input')].forEach(el => el.disabled = false);
@@ -293,7 +287,7 @@ function lockEditing() {
       button.innerText = isApproved ? 'Approved by editor' : 'Submitted to editor';
     }
     aiButton.style.display = 'none';
-    [...document.querySelectorAll('#headline,.section-text,.alt-text,.consent-notes')].forEach(el => el.contentEditable = false);
+    [...document.querySelectorAll('#headline,.section-text,.alt-text')].forEach(el => el.contentEditable = false);
     [...document.querySelectorAll('.section-delete,.clear-image,#addsectioncontainer')].forEach(el => el.style.display = 'none');
     [...document.querySelectorAll('.section-text,.section-image,#headline')].forEach(el => el.style.border = 'none');
     [...document.querySelectorAll('input')].forEach(el => el.disabled = true);
@@ -400,6 +394,118 @@ async function uploadImage(blob, type) {
   await save();
 }
 
+// Image blurring
+
+const canvas = document.getElementById('blur-canvas');
+const ctx = canvas.getContext('2d');
+const prevVals = [];
+let blurImageSection;
+let blurCurrentImageName;
+let fixedBlurs;
+let blurRadius;
+let blurImage;
+
+function openBlurPanel(imageSection, imageName) {
+  blurImageSection = imageSection;
+  blurCurrentImageName = imageName;
+  fixedBlurs = [];
+  blurRadius = 50;
+  blurImage = new Image();
+  blurImage.crossOrigin = 'anonymous';
+  blurImage.onload = () => ctx.drawImage(blurImage, 0, 0, canvas.width, canvas.height);
+  blurImage.src = `${blobBaseUrl}${domain}/${articleKey}/${imageName}?${sas}`;
+  document.getElementById('blur-editor').style.display = 'block';
+}
+
+canvas.addEventListener('mousemove', (event) => {
+  const rect = canvas.getBoundingClientRect();
+  currentX = event.clientX - rect.left;
+  currentY = event.clientY - rect.top;
+  redrawCanvas();
+  drawCircularBlur(currentX, currentY, blurRadius);
+});
+
+canvas.addEventListener('mouseleave', () => {
+  redrawCanvas();
+});
+
+canvas.addEventListener('click', () => {
+  fixedBlurs.push({ x: currentX, y: currentY, radius: blurRadius });
+  redrawCanvas();
+});
+
+canvas.addEventListener('contextmenu', (event) => {
+  fixedBlurs.pop();
+  redrawCanvas();
+  event.preventDefault();
+});
+
+canvas.addEventListener('wheel', (event) => {
+  blurRadius += event.deltaY * -0.05;
+  blurRadius = Math.max(10, Math.min(200, blurRadius));
+  redrawCanvas();
+  drawCircularBlur(currentX, currentY, blurRadius);
+  event.preventDefault();
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.target.matches('input')) return;
+  if (event.key === '-') {
+    blurRadius = Math.max(10, blurRadius - 2);
+    redrawCanvas();
+    drawCircularBlur(currentX, currentY, blurRadius);
+  } else if (event.key === '=' || event.key === '+') {
+    blurRadius = Math.min(200, blurRadius + 2);
+    redrawCanvas();
+    drawCircularBlur(currentX, currentY, blurRadius);
+  }
+});
+
+function redrawCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(blurImage, 0, 0, canvas.width, canvas.height);
+  fixedBlurs.forEach(({ x, y, radius }) => drawCircularBlur(x, y, radius));
+}
+
+function drawCircularBlur(x, y, radius) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.filter = 'blur(10px)';
+  ctx.drawImage(canvas, 0, 0);
+  ctx.restore();
+}
+
+document.getElementById('blur-save').addEventListener('click', async () => {
+  if (fixedBlurs.length === 0) {
+    alert('You have not selected any regions to blur.');
+    return;
+  }
+  if (!confirm('Are you sure you want to blur the selected regions? This cannot be undone.')) return;
+  redrawCanvas();
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+  const resp = await fetch(`/api/articles/${articleKey}/image`, {
+    method: 'POST',
+    headers: { 'X-XSRF-TOKEN': antiforgeryToken, 'Content-Type': 'image/jpeg' },
+    body: blob
+  });
+  if (!resp.ok) {
+    alert(await resp.json());
+    return;
+  }
+  const imageUrl = await resp.json();
+  blurImageSection.dataset.image = imageUrl;
+  blurImageSection.querySelector('img').src = `${blobBaseUrl}${domain}/${articleKey}/${imageUrl}?${sas}`;
+  await save();
+  await request(`/api/articles/${articleKey}/image/${blurCurrentImageName}`, 'DELETE');
+  document.getElementById('blur-editor').style.display = 'none';
+});
+
+document.getElementById('blur-cancel').addEventListener('click', () => {
+  document.getElementById('blur-editor').style.display = 'none';
+});
+
 // Cover photo
 
 function updateCoverPhotoLinks() { 
@@ -464,6 +570,15 @@ connection.on('Type', function (token) {
 
 // AI writing
 
+document.addEventListener('keydown', function (e) {
+  if (e.altKey) {
+    if (e.key === '\\') {
+      if (content === null || (content.headline === '' && content.sections.every(s => s.text === '' && s.image === null))) document.getElementById('aiwriting').style.display = '';
+      e.preventDefault();
+    }
+  }
+});
+
 [document.getElementById('aitopic'), document.getElementById('aicontent')].forEach(el => {
   el.addEventListener('blur', e => {
     e.target.innerText = e.target.innerText.replace(invalidCharacters, '').replace(/\n/g, '; ').replace(invalidWhitespace, ' ').replace(repeatedSpaces, ' ').trim();
@@ -507,5 +622,4 @@ document.getElementById('aicancel').addEventListener('click', async () => {
     if (!confirm('Are you sure you want to close the AI panel?')) return;
   }
   document.getElementById('aiwriting').style.display = 'none';
-  aiDisabled = true;
 });

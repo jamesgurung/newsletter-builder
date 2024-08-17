@@ -253,9 +253,8 @@ section:has(.section-delete:hover) > div:not(.section-menu) {
   border-width: 3px;
 }
 
-#image-editor {
+#image-editor,#blur-editor {
   display: none;
-  opacity: 0;
   position: fixed;
   top: 0;
   left: 0;
@@ -264,17 +263,26 @@ section:has(.section-delete:hover) > div:not(.section-menu) {
   background-color: #f6f6f6;
   text-align: center;
 }
+#image-editor {
+  opacity: 0;
+}
 
-#image-editor-text {
+#image-editor-text,#blur-editor-text {
   width: 90%;
   margin: 18px auto;
 }
 
-#cropper-container {
+#cropper-container,#blur-container {
   width: 90%;
   height: 90%;
   margin: 0 auto;
   background-color: white;
+}
+
+#blur-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 #rotate-left {

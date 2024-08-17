@@ -12,6 +12,7 @@ public class Organisation
   public string Footer { get; init; }
   public string BannedWords { get; init; }
   public string PhotoConsentUrl { get; init; }
+  public IList<string> UnlistedArticles { get; init; }
   public string FromEmail { get; init; }
   public string QualityAssuranceEmail { get; init; }
   public string SocialMediaEmail { get; init; }

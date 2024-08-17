@@ -64,6 +64,7 @@ app.MapHub<ChatHub>("/chat");
 app.MapRazorPages();
 app.MapAuthPaths();
 app.MapApiPaths();
+app.MapGet("/nav.js", () => Results.Content(string.Empty, "text/javascript"));
 app.MapAutomationApiPaths();
 
 app.Run();

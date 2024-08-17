@@ -9,9 +9,9 @@
 <div id="aiwriting" style="display: none">
   <div style="font-weight: bold; font-size: 16px; color: #1379ce; margin: 6px 0 12px">Write using AI</div>
   <div id="aitopic" class="section-ai" contenteditable="true" data-placeholder="Article topic"></div>
-  <div id="aicontent" class="section-ai" contenteditable="true" data-placeholder="Key points to include"></div>
+  <div id="aicontent" class="section-ai" contenteditable="true" data-placeholder="Key points to include &ndash; provide lots of detail"></div>
   <div>How many photos do you have? &nbsp; <span id="aiparagraphs" contenteditable="true">3</span></div>
-  <div style="text-align: center; margin: 18px 0"><a id="aiwrite">Generate article</a> <a id="aicancel">Cancel</a></div>
+  <div style="text-align: center; margin: 18px 0"><a id="aiwrite">Generate article</a> <a id="aicancel">Close</a></div>
   <div id="ailoading" style="display: none"><div class="typing"><span></span><span></span><span></span></div></div>
 </div>
 
@@ -51,7 +51,7 @@
   <ul style="color: grey">
     <li>Your changes are saved automatically. Only click submit once the article is complete.</li>
     <li>Aim for at least 3 paragraphs, each paired with a photo. If you have fewer photos, click the &#10006; icons to remove sections.</li>
-    <li>Each paragraph should be 1-2 sentences.</li>
+    <li>Each paragraph should be 1-3 sentences.</li>
     <li>Carefully check your spelling, punctuation, and grammar.</li>
     <li>Photos must show students, staff, or student work. You must check @Html.Raw(string.IsNullOrEmpty(thisOrganisation.PhotoConsentUrl) ? "photo consent" : $"<a href=\"{thisOrganisation.PhotoConsentUrl}\" target=\"blank\">photo consent</a>"). Do not upload other types of images (e.g. infographics or stock photos).</li>
   </ul>
@@ -66,6 +66,15 @@
     </div>
   </div>
 
+  <div id="blur-editor">
+    <div id="blur-editor-text">
+      Click to blur faces. Use the mouse wheel or <kbd>+/-</kbd> keys to adjust the size of the blur. &nbsp;
+      <a id="blur-save" style="font-weight: bold">Save</a> &nbsp; <a id="blur-cancel">Cancel</a></div>
+    <div id="blur-container">
+      <canvas id="blur-canvas" width="1120" height="630"></canvas>
+    </div>
+  </div>
+
 </div>
 
 <template id="sectiontemplate">
@@ -77,8 +86,7 @@
       <img />
       <div class="alt-text" contenteditable="true" data-placeholder="Type a short description of the photo (for users with screen readers)" data-maxlength="120"></div>
       <div class="consent"><label><input type="checkbox" /> All students have photo consent</label></div>
-      <div class="consent-notes" contenteditable="true" data-placeholder="Which students need to be blurred? Describe their positions in the photo." data-maxlength="300"></div>
-      <div class="clear-image-section"><span class="approve-image-section"><a class="approve-image">Approve</a> | </span><a class="clear-image">Clear image</a></div>
+      <div class="clear-image-section"><span class="approve-image-section"><a class="approve-image">Approve</a> | </span><span class="blur-image-section"><a class="blur-start">Blur faces</a> | </span><a class="clear-image">Clear image</a></div>
     </div>
     <div class="section-menu"><a class="section-delete" title="Delete section">&#10006;</a></div>
   </section>

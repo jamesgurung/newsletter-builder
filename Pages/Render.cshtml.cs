@@ -25,11 +25,12 @@ public class RenderPageModel() : PageModel
     var users = (await tableService.ListUsersAsync()).Where(o => !o.IsEditor).ToDictionary(o => o.RowKey, o => o.DisplayName);
     Articles = OrderArticles(articles, newsletter.ArticleOrder).Select(o => new DisplayArticle {
       ShortName = o.ShortName,
+      Title = o.Title,
       Content = o.Content is null ? new() { Sections = [] } : JsonSerializer.Deserialize<ArticleContentData>(o.Content),
       AuthorDisplayName = users.TryGetValue(o.ContributorList[0], out var name) ? name : null
     }).ToList();
     foreach (var article in Articles) {
-      if (article.Content.Sections.Count == 0) article.Content.Sections.Add(new() { IncludeImage = article.ShortName != "intro" });
+      if (article.Content.Sections.Count == 0) article.Content.Sections.Add(new());
       AddImageRenderNames(article.ShortName, article.Content.Sections);
     }
     CoverPhoto = (string.IsNullOrEmpty(newsletter.CoverPhoto) ? null : Articles.SelectMany(o => o.Content.Sections)

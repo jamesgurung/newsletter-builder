@@ -22,7 +22,7 @@ Here are the steps:
         * DisplayName - `<your-title-and-surname>`
     * Enable static website hosting, and set the index document to `index.html` and the error document to `404.html`. This will create a `$web` blob container, which will be the root of the public-facing newsletter website.
     * Customise the contents of the `StaticWebsite` folder in this repository, for example replacing placeholders with their appropriate values. Then upload to the `$web` blob container. Also upload `logo.jpg` (250x250px), `logo-hd.jpg` (1200x1200px), `favicon.ico`, and `icon-192x192.png`.
-    * Enable CORS for blob `GET` requests from `<your-newsletter-builder-domain>`.
+    * Enable CORS for blob `GET` requests from `https://<your-newsletter-builder-domain>`.
 
 2. Create an Azure CDN endpoint with the static website as its origin, and a custom domain set to `https://<your-newsletter-domain>`. Enable compression. Add the following rules:
     * If request protocol = `HTTP` then URL redirect Found (302), HTTPS 
@@ -51,6 +51,7 @@ Here are the steps:
     * `Organisations__0__Footer` - the footer text to include in emails
     * `Organisations__0__BannedWords` - a JSON array of words which are not allowed in articles
     * `Organisations__0__PhotoConsentUrl` - the URL of the photo consent spreadsheet
+    * `Organisations__0__UnlistedArticles__0` - an article name which should not be listed on the index page, for example a regular standing item (subsequent unlisted articles can be set up by adding additional items with incrementing indices)
     * `Organisations__0__FromEmail` - the email address from which newsletters and reminders will be sent
     * `Organisations__0__QualityAssuranceEmail` - the email address to which quality assurance requests will be sent
     * `Organisations__0__SocialMediaEmail` - the email address to receive requests to share the newsletter on social media
