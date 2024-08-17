@@ -3,9 +3,14 @@
 const article = document.getElementsByTagName('article')[0];
 const headline = document.getElementById('headline');
 const prevVals = [];
+const invalidCharacters = /[^A-Za-z0-9\[\]\*!"£$%&();:',.=_#@\/?\s\u00E0\u00E2\u00E6\u00E7\u00E9\u00E8\u00EA\u00EB\u00EE\u00EF\u00F4\u0153\u00F9\u00FB\u00FC\u00FF\u00C0\u00C2\u00C6\u00C7\u00C9\u00C8\u00CA\u00CB\u00CE\u00CF\u00D4\u0152\u00D9\u00DB\u00DC\u0178\u00A1\u00BF\+-]+/g;
+const invalidWhitespace = /[\f\t\v\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]/g;
+const repeatedSpaces = /\s\s+/g;
+
 let inputsIdx = 0;
 let saved = true;
 let typing = false;
+let aiDisabled = false;
 
 // Load article
 
@@ -20,6 +25,7 @@ if (content) {
   } else {
     addSection(true); addSection(true); addSection(true);
   }
+  document.getElementById('aiwriting').style.display = null;
 }
 configureInput([document.getElementById('headline')]);
 if (isSubmitted) {
@@ -115,6 +121,7 @@ async function save() {
   };
   const resp = await request(`/api/articles/${articleKey}/content`, 'PUT', content);
   if (resp.ok) document.getElementById('requestaifeedback').classList.remove('disabled');
+  if (!aiDisabled) document.querySelector('#aiwriting').style.display = (content.headline === '' && content.sections.every(s => s.text === '' && s.image === null)) ? '' : 'none';
   return resp.ok;
 }
 
@@ -129,7 +136,7 @@ function configureInput(elements) {
       }
       const originalLength = text.length;
       const maxLength = e.target.dataset.maxlength;
-      text = text.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').slice(0, maxLength).replace(/[^A-Za-z0-9\[\]\*!"£$%&();:',.=_#@\/?\s\u00E0\u00E2\u00E6\u00E7\u00E9\u00E8\u00EA\u00EB\u00EE\u00EF\u00F4\u0153\u00F9\u00FB\u00FC\u00FF\u00C0\u00C2\u00C6\u00C7\u00C9\u00C8\u00CA\u00CB\u00CE\u00CF\u00D4\u0152\u00D9\u00DB\u00DC\u0178\u00A1\u00BF\+-]+/, '');
+      text = text.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').slice(0, maxLength).replace(invalidCharacters, '');
       if (text !== e.target.innerText) {
         e.target.innerText = text;
         pos = pos - (originalLength - e.target.innerText.length);
@@ -140,7 +147,7 @@ function configureInput(elements) {
 
     el.addEventListener('blur', async e => {
       if (saved) return;
-      e.target.innerText = e.target.innerText.replace(/[\f\t\v\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]/g, ' ').replace(/\s\s+/g, ' ').trim();
+      e.target.innerText = e.target.innerText.replace(invalidWhitespace, ' ').replace(repeatedSpaces, ' ').trim();
       if (!await save()) return;
       flash(e.target);
       saved = true;
@@ -172,7 +179,7 @@ article.addEventListener('click', async e => {
       if (!confirm('Are you sure you want to delete this paragraph and photo?')) return;
     }
     if (section.dataset.includeimage === 'true') {
-      var imageName = section.querySelector('.section-image').dataset.image;
+      const imageName = section.querySelector('.section-image').dataset.image;
       if (imageName) {
         await request(`/api/articles/${articleKey}/image/${imageName}`, 'DELETE');
       }
@@ -330,8 +337,8 @@ function onSelectImage(e) {
       dragMode: 'move',
       toggleDragModeOnDblclick: false,
       crop: function (event) {
-        var width = Math.round(event.detail.width);
-        var height = Math.round(event.detail.height);
+        const width = Math.round(event.detail.width);
+        const height = Math.round(event.detail.height);
 
         if (width < 1120 || height < 630) {
           cropper.setData({
@@ -420,22 +427,22 @@ document.getElementById('requestaifeedback').addEventListener('click', async e =
   if (e.target.classList.contains('disabled')) return;
   if (!isValid('request review')) return;
   e.target.classList.add('disabled');
-  var div = document.getElementById('aifeedbackcontent');
+  const div = document.getElementById('aifeedbackcontent');
   div.innerHTML = '';
   document.getElementById('aifeedbackbubble').style.display = '';
   document.getElementById('aifeedback').style.display = '';
   document.getElementById('aifeedbackfinish').style.display = 'none';
   window.scrollTo(0, document.body.scrollHeight);
   typing = true;
-  var resp = await request(`/api/aifeedback`, 'POST', {
+  const resp = await request(`/api/aifeedback`, 'POST', {
     Identifier: articleKey,
     Headline: content.headline,
     Content: content.sections.map(s => s.text + '\n' + (s.includeImage ? (s.altText ? `[Photo - Caption: ${s.altText}]` : '[Photo]') : '')).join('\n'),
     ConnectionId: connection.connectionId
   });
   typing = false;
-  var bullets = await resp.json();
-  var html = bullets.split('\n')
+  const bullets = await resp.json();
+  const html = bullets.split('\n')
     .filter(o => o)
     .map(o => o.slice(2).trim())
     .map(o => `<li>${o}</li>`)
@@ -453,4 +460,52 @@ connection.on('Type', function (token) {
   const ul = chat.getElementsByTagName('ul')[0];
   if (token === '*') ul.appendChild(document.createElement("li"));
   else ul.querySelector('li:last-child').textContent += token.replace(/\n/g, ' ');
+});
+
+// AI writing
+
+[document.getElementById('aitopic'), document.getElementById('aicontent')].forEach(el => {
+  el.addEventListener('blur', e => {
+    e.target.innerText = e.target.innerText.replace(invalidCharacters, '').replace(/\n/g, '; ').replace(invalidWhitespace, ' ').replace(repeatedSpaces, ' ').trim();
+  });
+});
+
+document.getElementById('aiparagraphs').addEventListener('blur', e => {
+  const num = parseInt(e.target.innerText);
+  e.target.innerText = (isNaN(num) || num < 1) ? '1' : (num > 10 ? '10' : num);
+});
+
+document.getElementById('aiwrite').addEventListener('click', async () => {
+  const topic = document.getElementById('aitopic').innerText;
+  const content = document.getElementById('aicontent').innerText;
+  if (!topic) { alert('Please specify the article topic.'); return; }
+  if (content.length < 100) { alert('Please provide more information, so the AI can write a meaningful article.'); return; }
+  [...document.getElementById('aiwriting').children].forEach(el => el.style.display = 'none');
+  document.getElementById('ailoading').style.display = null;
+  const response = await request(`/api/aiwrite`, 'POST', {
+    Identifier: articleKey,
+    Headline: topic,
+    Content: content,
+    Paragraphs: parseInt(document.getElementById('aiparagraphs').innerText)
+  });
+  if (response.ok) {
+    const data = await response.json();
+    headline.innerText = data.headline;
+    article.innerHTML = '';
+    for (const paragraph of data.body) addSection(true, paragraph, null, null, false, null);
+  }
+  document.getElementById('aiwriting').style.display = 'none';
+  [...document.getElementById('aiwriting').children].forEach(el => el.style.display = null);
+  document.getElementById('ailoading').style.display = 'none';
+  await save();
+  [...document.querySelectorAll('#headline, .section-text')].forEach(el => flash(el));
+
+});
+
+document.getElementById('aicancel').addEventListener('click', async () => {
+  if (document.getElementById('aitopic').innerText || document.getElementById('aicontent').innerText) {
+    if (!confirm('Are you sure you want to close the AI panel?')) return;
+  }
+  document.getElementById('aiwriting').style.display = 'none';
+  aiDisabled = true;
 });

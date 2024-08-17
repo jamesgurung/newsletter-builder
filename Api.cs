@@ -377,6 +377,12 @@ public static class Api
       return Results.Ok();
     });
 
+    group.MapPost("/aiwrite", async (WriteArticleRequest writeRequest, IHubContext<ChatHub, IChatClient> hubContext) =>
+    {
+      var response = await ChatGPT.WriteArticleAsync(writeRequest.Headline, writeRequest.Content, writeRequest.Paragraphs, writeRequest.Identifier);
+      return Results.Ok(response);
+    });
+
     group.MapPost("/aifeedback", async (ArticleFeedbackRequest feedbackRequest, IHubContext<ChatHub, IChatClient> hubContext) =>
     {
       var response = await ChatGPT.RequestArticleFeedbackAsync(feedbackRequest.Headline, feedbackRequest.Content, feedbackRequest.Identifier,
@@ -467,10 +473,14 @@ public static class Api
             await hubContext.Clients.Client(sendData.ConnectionId).SendProgress(perc);
           }
 
-          var socialMediaHtml = "<html><body style=\"font-family: arial, helvetica, sans-serif; font-size: 11pt\">Hi<br /><br />Please post the newsletter on social media.<br /><br />Best wishes<br /><br />" +
-            $"{thisOrganisation.Name}<br /><br /></body></html>";
-          mailer.Enqueue(thisOrganisation.QualityAssuranceEmail, "Newsletter", thisOrganisation.FromEmail, currentUserEmail, false, socialMediaHtml);
-          await mailer.SendAsync();
+          if (thisOrganisation.SocialMediaEmail is not null)
+          {
+            var socialMediaHtml = "<html><body style=\"font-family: arial, helvetica, sans-serif; font-size: 11pt\">Hi<br /><br />" +
+              "Please post the latest newsletter on social media.<br /><br />Best wishes<br /><br />" +
+              $"{thisOrganisation.Name}<br /><br /></body></html>";
+            mailer.Enqueue(thisOrganisation.SocialMediaEmail, "Newsletter", thisOrganisation.FromEmail, currentUserEmail, false, socialMediaHtml);
+            await mailer.SendAsync();
+          }
 
           newsletter.IsSent = true;
           await tableService.UpdateNewsletterAsync(newsletter);          

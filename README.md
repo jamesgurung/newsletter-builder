@@ -53,6 +53,7 @@ Here are the steps:
     * `Organisations__0__PhotoConsentUrl` - the URL of the photo consent spreadsheet
     * `Organisations__0__FromEmail` - the email address from which newsletters and reminders will be sent
     * `Organisations__0__QualityAssuranceEmail` - the email address to which quality assurance requests will be sent
+    * `Organisations__0__SocialMediaEmail` - the email address to receive requests to share the newsletter on social media
     * `Organisations__0__ReminderReplyTo` - the reply-to address for reminders
     * `Organisations__0__TwitterHandle` - the Twitter handle of your organisation, starting with an @ symbol
     * `Organisations__0__DefaultDeadlineDaysBeforePublish` - the default number of days before the publish date that articles are due

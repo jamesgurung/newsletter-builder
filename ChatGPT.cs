@@ -37,6 +37,26 @@ public static class ChatGPT
     Required = new[] { "AltText", "Subject" }
   }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
 
+  private static readonly ChatTool writeArticleTool = ChatTool.CreateFunctionTool("write_article", null, BinaryData.FromObjectAsJson(new
+  {
+    Type = "object",
+    Properties = new
+    {
+      Headline = new
+      {
+        Type = "string",
+        Description = "A short, engaging headline"
+      },
+      Body = new
+      {
+        Type = "array",
+        Description = "An array of very short paragraphs that make up the main text of the article. Each paragraph is 2-3 sentences.",
+        Items = new { Type = "string" }
+      }
+    },
+    Required = new[] { "Headline", "Body" }
+  }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+
   public static async Task<string> DescribePhotoAsync(Uri photoUri, string title, string identifier)
   {
     var messages = new List<ChatMessage>
@@ -117,6 +137,33 @@ public static class ChatGPT
       return text;
     }
   }
+
+  public static async Task<AIArticleResponse> WriteArticleAsync(string headline, string content, int paragraphs, string identifier)
+  {
+    var messages = new List<ChatMessage>
+    {
+      new SystemChatMessage("You are a helpful assistant who writes articles for an Academy newsletter. " +
+        "You write in a warm, engaging tone, using British English spelling and grammar. " +
+        "You use the Oxford comma. You write short paragraphs of 2-3 sentences. " +
+        "You do not use subheadings or bullet points."),
+      new UserChatMessage("Write an article for our newsletter.\n\n" +
+        $"Topic: {headline}\n\n" +
+        $"Key points to include: {content}\n\n" +
+        $"Please write a headline and exactly {paragraphs} paragraphs.")
+    };
+
+    var options = new ChatCompletionOptions
+    {
+      Temperature = 0.2f,
+      User = identifier,
+      Tools = { writeArticleTool },
+      ToolChoice = new(writeArticleTool)
+    };
+
+    var response = await _client.CompleteChatAsync(messages, options);
+    var args = response.Value.ToolCalls[0].FunctionArguments;
+    return JsonSerializer.Deserialize<AIArticleResponse>(args);
+  }
 }
 
 public class AIPhotoResponse
@@ -125,4 +172,12 @@ public class AIPhotoResponse
   public string AltText { get; set; }
   [JsonPropertyName("subject")]
   public string Subject { get; set; }
+}
+
+public class AIArticleResponse
+{
+  [JsonPropertyName("headline")]
+  public string Headline { get; set; }
+  [JsonPropertyName("body")]
+  public IList<string> Body { get; set; }
 }

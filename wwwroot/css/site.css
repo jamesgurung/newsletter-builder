@@ -287,7 +287,7 @@ section:has(.section-delete:hover) > div:not(.section-menu) {
   transform: rotate(120deg);
 }
 
-#submit, #requestaifeedback {
+#submit, #requestaifeedback, #aiwrite {
   background-color: #1379CE;
   color: white;
   padding: 8px 16px;
@@ -416,4 +416,39 @@ span.grey {
   height: 100%;
   background-color: #7cc5ff;
   transition: width 1.5s ease-in-out;
+}
+
+#aiwriting {
+  background-color: #ebf6ff;
+  padding: 6px;
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+#aitopic {
+  font-weight: bold;
+}
+
+.section-ai {
+  border: 2px solid #7cc5ff;
+  padding: 6px;
+  margin: 6px 0;
+}
+
+#aiparagraphs {
+  display: inline-block;
+  border: 2px solid #7cc5ff;
+  padding: 3px;
+  width: 40px;
+}
+
+#aicancel {
+  background-color: #999;
+  color: white;
+  padding: 8px 16px;
+  font-weight: bold;
+}
+
+#ailoading {
+  margin: 10px 0;
 }

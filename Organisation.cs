@@ -14,6 +14,7 @@ public class Organisation
   public string PhotoConsentUrl { get; init; }
   public string FromEmail { get; init; }
   public string QualityAssuranceEmail { get; init; }
+  public string SocialMediaEmail { get; init; }
   public string ReminderReplyTo { get; init; }
   public int DefaultDeadlineDaysBeforePublish { get; init; }
   public IList<Reminder> Reminders { get; init; }

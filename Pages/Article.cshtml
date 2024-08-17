@@ -6,6 +6,15 @@
 
 <p style="text-align: center; color: grey">Newsletter: <b>@Model.Article.Date</b> &nbsp; Article: <b>@Model.Article.Title</b></p>
 
+<div id="aiwriting" style="display: none">
+  <div style="font-weight: bold; font-size: 16px; color: #1379ce; margin: 6px 0 12px">Write using AI</div>
+  <div id="aitopic" class="section-ai" contenteditable="true" data-placeholder="Article topic"></div>
+  <div id="aicontent" class="section-ai" contenteditable="true" data-placeholder="Key points to include"></div>
+  <div>How many photos do you have? &nbsp; <span id="aiparagraphs" contenteditable="true">3</span></div>
+  <div style="text-align: center; margin: 18px 0"><a id="aiwrite">Generate article</a> <a id="aicancel">Cancel</a></div>
+  <div id="ailoading" style="display: none"><div class="typing"><span></span><span></span><span></span></div></div>
+</div>
+
 <div id="main" style="display: none">
 
   <h2 id="headline" contenteditable="true" data-placeholder="@(Model.Article.ShortName == "intro" ? "Newsletter" : "Article") Headline" data-maxlength="80"></h2>
