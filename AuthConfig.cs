@@ -20,7 +20,7 @@ public static class AuthConfig
       {
         o.LoginPath = "/auth/login";
         o.LogoutPath = "/auth/logout";
-        o.ExpireTimeSpan = TimeSpan.FromDays(90);
+        o.ExpireTimeSpan = TimeSpan.FromDays(60);
         o.SlidingExpiration = true;
         o.ReturnUrlParameter = "path";
         o.Events = new()
@@ -29,6 +29,26 @@ public static class AuthConfig
           {
             context.Response.StatusCode = 403;
             return Task.CompletedTask;
+          },
+          OnValidatePrincipal = async context =>
+          {
+            var issued = context.Properties.IssuedUtc;
+            if (issued.HasValue && issued.Value > DateTimeOffset.UtcNow.AddDays(-1))
+            {
+              return;
+            }
+            var email = context.Principal.GetEmail();
+            var identity = new ClaimsIdentity(context.Principal.Identity.AuthenticationType);
+            if (await RefreshIdentityAsync(identity, email))
+            {
+              context.ReplacePrincipal(new ClaimsPrincipal(identity));
+              context.ShouldRenew = true;
+            }
+            else
+            {
+              context.RejectPrincipal();
+              await context.HttpContext.SignOutAsync();
+            };
           }
         };
       })
@@ -43,37 +63,44 @@ public static class AuthConfig
           OnTicketReceived = async context =>
           {
             var email = context.Principal.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Upn)?.Value.ToLowerInvariant();
-            User user = null;
-            if (email is not null)
-            {
-              var emailParts = email.Split('@');
-              if (Organisation.ByDomain.ContainsKey(emailParts[1]))
-              {
-                var service = new TableService(emailParts[1]);
-                user = await service.GetUserAsync(emailParts[0]);
-              }
-            }
-            if (user is null)
+            if (!await RefreshIdentityAsync((ClaimsIdentity)context.Principal.Identity, email))
             {
               context.Response.Redirect("/auth/denied");
               context.HandleResponse();
-              return;
-            }
-            var identity = context.Principal.Identity as ClaimsIdentity;
-            for (var i = identity.Claims.Count() - 1; i >= 0; i--)
-            {
-              identity.RemoveClaim(identity.Claims.ElementAt(i));
-            }
-            identity.AddClaim(new Claim(ClaimTypes.Name, user.DisplayName));
-            identity.AddClaim(new Claim(ClaimTypes.Email, email));
-            identity.AddClaim(new Claim(ClaimTypes.GivenName, user.FirstName));
-            identity.AddClaim(new Claim(ClaimTypes.Role, user.IsEditor ? Roles.Editor : Roles.Contributor));
+            };
           }
         };
       });
 
     builder.Services.AddAuthorizationBuilder()
       .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+  }
+
+  private static async Task<bool> RefreshIdentityAsync(ClaimsIdentity identity, string email)
+  {
+    User user = null;
+    if (email is not null)
+    {
+      var emailParts = email.Split('@');
+      if (Organisation.ByDomain.ContainsKey(emailParts[1]))
+      {
+        var service = new TableService(emailParts[1]);
+        user = await service.GetUserAsync(emailParts[0]);
+      }
+    }
+    if (user is null)
+    {
+      return false;
+    }
+    for (var i = identity.Claims.Count() - 1; i >= 0; i--)
+    {
+      identity.RemoveClaim(identity.Claims.ElementAt(i));
+    }
+    identity.AddClaim(new Claim(ClaimTypes.Name, user.DisplayName));
+    identity.AddClaim(new Claim(ClaimTypes.Email, $"{user.RowKey}@{user.PartitionKey}"));
+    identity.AddClaim(new Claim(ClaimTypes.GivenName, user.FirstName));
+    identity.AddClaim(new Claim(ClaimTypes.Role, user.IsEditor ? Roles.Editor : Roles.Contributor));
+    return true;
   }
 
   private static readonly string[] authenticationSchemes = ["Microsoft"];

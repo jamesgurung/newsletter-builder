@@ -252,7 +252,7 @@ if (isEditor) {
       button.style.cursor = '';
       isApproved = false;
       [...document.querySelectorAll('#headline,.section-text,.alt-text')].forEach(el => el.contentEditable = true);
-      [...document.querySelectorAll('.section-delete,.clear-image,#addsectioncontainer,#submit')].forEach(el => el.style.display = '');
+      [...document.querySelectorAll('.section-delete,.clear-image,.blur-image-section,#addsectioncontainer,#submit')].forEach(el => el.style.display = '');
       [...document.querySelectorAll('.section-text,.section-image,#headline')].forEach(el => el.style.border = '');
       [...document.querySelectorAll('input')].forEach(el => el.disabled = false);
       updateCoverPhotoLinks();
@@ -288,7 +288,7 @@ function lockEditing() {
     }
     aiButton.style.display = 'none';
     [...document.querySelectorAll('#headline,.section-text,.alt-text')].forEach(el => el.contentEditable = false);
-    [...document.querySelectorAll('.section-delete,.clear-image,#addsectioncontainer')].forEach(el => el.style.display = 'none');
+    [...document.querySelectorAll('.section-delete,.clear-image,.blur-image-section,#addsectioncontainer')].forEach(el => el.style.display = 'none');
     [...document.querySelectorAll('.section-text,.section-image,#headline')].forEach(el => el.style.border = 'none');
     [...document.querySelectorAll('input')].forEach(el => el.disabled = true);
     
