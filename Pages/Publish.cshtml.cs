@@ -32,10 +32,12 @@ public class PublishPageModel() : PageModel
     if (Description is null) {
       var textInfo = CultureInfo.InvariantCulture.TextInfo;
       var unlisted = Organisation.ByDomain[domain].UnlistedArticles ?? [];
-      var articleOrder = newsletter.ArticleOrder.Split(',')
+      var articleTitles = newsletter.ArticleOrder.Split(',')
         .Where(o => !unlisted.Contains(o, StringComparer.OrdinalIgnoreCase))
         .Select(o => articles.FirstOrDefault(a => a.ShortName == o)?.Title).Where(o => o is not null).ToList();
-      Description = articleOrder switch
+      var introArticle = articles.First(o => o.ShortName == "intro");
+      if (introArticle.Title != "Intro") articleTitles.Insert(0, introArticle.Title);
+      Description = articleTitles switch
       {
         [] => string.Empty,
         [var el] => el,

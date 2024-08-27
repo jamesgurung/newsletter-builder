@@ -15,7 +15,7 @@
     <PackageReference Include="Markdig" Version="0.37.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="8.0.8" />
     <PackageReference Include="Microsoft.Extensions.Azure" Version="1.7.5" />
-    <PackageReference Include="OpenAI" Version="2.0.0-beta.8" />
+    <PackageReference Include="OpenAI" Version="2.0.0-beta.10" />
     <PackageReference Include="Postmark" Version="5.2.0" />
     <PackageReference Include="PreMailer.Net" Version="2.6.0" />
     <PackageReference Include="System.Text.Json" Version="[8.0.4]" />

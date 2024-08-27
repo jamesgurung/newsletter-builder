@@ -67,13 +67,14 @@ function setImage(el, image, alt, consent) {
   const clearElement = el.querySelector('.clear-image-section');
   const approveElement = el.querySelector('.approve-image-section');
   const setCoverPhotoElement = el.querySelector('.set-cover-photo-section');
+  const blurImageElement = el.querySelector('.blur-image-section');
   const isGenerating = alt === 'generating';
   const isInvalid = alt === 'invalid';
 
-  el.dataset.image = image ?? '';
+  el.dataset.image = (image && image.substring(0, 5) !== 'blob:') ? image : '';
 
   uploadElement.style.display = image ? 'none' : null;
-  imageElement.src = image ? `${blobBaseUrl}${domain}/${articleKey}/${image}?${sas}` : '';
+  imageElement.src = image ? (image.substring(0, 5) === 'blob:' ? image : `${blobBaseUrl}${domain}/${articleKey}/${image}?${sas}`) : '';
   imageElement.style.display = image ? null : 'none';
   altTextElement.contentEditable = !isGenerating && !isInvalid;
   altTextElement.className = isGenerating ? 'alt-text alt-text-loading' : (isInvalid ? 'alt-text alt-text-error' : 'alt-text');
@@ -83,6 +84,7 @@ function setImage(el, image, alt, consent) {
   consentAreaElement.style.display = image && !isGenerating && !isInvalid ? null : 'none';
   consentElement.checked = image ? consent : false;
   clearElement.style.display = image && !isGenerating ? null : 'none';
+  blurImageElement.style.display = image && !isGenerating && !isInvalid ? null : 'none';
   approveElement.style.display = image && isInvalid && isEditor ? null : 'none';
   setCoverPhotoElement.style.display = 'none';
 }
@@ -371,6 +373,9 @@ document.getElementById('rotate-left').addEventListener('click', () => { cropper
 document.getElementById('rotate-right').addEventListener('click', () => { cropper.clear(); cropper.rotate(90); cropper.crop(); });
 
 async function uploadImage(blob, type) {
+  const imageSection = currentImageInputElement.closest('.section-image');
+  var blobUrl = URL.createObjectURL(blob);
+  setImage(imageSection, blobUrl, 'generating');
   const resp = await fetch(`/api/articles/${articleKey}/image`, {
     method: 'POST',
     headers: { 'X-XSRF-TOKEN': antiforgeryToken, 'Content-Type': type },
@@ -382,8 +387,6 @@ async function uploadImage(blob, type) {
   }
   currentImageInputElement.value = null;
   const imageUrl = await resp.json();
-  const imageSection = currentImageInputElement.closest('.section-image');
-  setImage(imageSection, imageUrl, 'generating');
   const describeResp = await request(`/api/articles/${articleKey}/image/${imageUrl}/describe`, 'POST');
   if (describeResp.ok) {
     const description = await describeResp.json();
@@ -391,6 +394,7 @@ async function uploadImage(blob, type) {
   } else {
     setImage(imageSection, imageUrl);
   }
+  URL.revokeObjectURL(blobUrl);
   await save();
 }
 
