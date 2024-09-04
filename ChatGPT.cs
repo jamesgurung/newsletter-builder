@@ -73,7 +73,7 @@ public static class ChatGPT
     var options = new ChatCompletionOptions
     {
       Temperature = 0,
-      User = identifier,
+      EndUserId = identifier,
       Tools = { describePhotoTool },
       ToolChoice = new(describePhotoTool)
     };
@@ -115,10 +115,10 @@ public static class ChatGPT
       "* Provide feedback on the writing style (it should be a balance of professional and casual, upbeat, and highly engaging). " +
       "Give a few examples of how parts could be reworded, if this is needed.";
 
-    var spagResponse = await CompleteChatStreamingAsync([new SystemChatMessage(systemPrompt), new UserChatMessage(spagPrompt)], new() { Temperature = 0.1f, TopP = 0.5f, User = identifier });
+    var spagResponse = await CompleteChatStreamingAsync([new SystemChatMessage(systemPrompt), new UserChatMessage(spagPrompt)], new() { Temperature = 0.1f, TopP = 0.5f, EndUserId = identifier });
 
     var styleResponse = await CompleteChatStreamingAsync([new SystemChatMessage(systemPrompt), new UserChatMessage(spagPrompt), new AssistantChatMessage(spagResponse),
-      new UserChatMessage(stylePrompt)], new() { Temperature = 0.3f, TopP = 0.8f, User = identifier });
+      new UserChatMessage(stylePrompt)], new() { Temperature = 0.3f, TopP = 0.8f, EndUserId = identifier });
 
     return $"{spagResponse}\n{styleResponse}";
 
@@ -157,7 +157,7 @@ public static class ChatGPT
       Temperature = 0.5f,
       TopP = 0.8f,
       FrequencyPenalty = 0.1f,
-      User = identifier,
+      EndUserId = identifier,
       Tools = { writeArticleTool },
       ToolChoice = new(writeArticleTool)
     };
