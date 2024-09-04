@@ -26,7 +26,6 @@
         @foreach (var article in newsletterArticles)
         {
           var name = article.ShortName;
-          if (name == "intro" && !isEditor) continue;
           <li data-key="@article.RowKey">
             @if (article.IsApproved) {<div class="status approved" title="Approved"></div>}
             else if (article.IsSubmitted) {<span class="status submitted" title="Submitted"></span>}
