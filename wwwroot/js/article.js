@@ -98,9 +98,9 @@ async function save() {
       const imageSection = el.getElementsByClassName('section-image')[0];
       const includeImage = el.dataset.includeimage === 'true';
       const imageUrl = includeImage && imageSection.dataset.image ? imageSection.dataset.image : null;
-      const alt = imageSection.querySelector('.alt-text');
-      const isInvalidImage = alt.classList.contains('alt-text-error');
-      const isAltTextLoading = alt.classList.contains('alt-text-loading');
+      const alt = imageUrl ? imageSection.querySelector('.alt-text') : null;
+      const isInvalidImage = imageUrl ? alt.classList.contains('alt-text-error') : null;
+      const isAltTextLoading = imageUrl ? alt.classList.contains('alt-text-loading') : null;
       const altText = imageUrl ? (isInvalidImage ? 'invalid' : (isAltTextLoading ? '' : alt.innerText)) : null;
       const consent = imageUrl ? imageSection.querySelector('input[type="checkbox"]').checked : false;
       return {
