@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.ClientModel;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.SignalR;
 using OpenAI.Chat;
@@ -9,7 +10,7 @@ public static class ChatGPT
 {
   public static void Configure(string apiKey, string modelName)
   {
-    _client = new ChatClient(modelName, apiKey);
+    _client = new ChatClient(modelName, new ApiKeyCredential(apiKey));
   }
 
   private static ChatClient _client;
@@ -65,8 +66,8 @@ public static class ChatGPT
         "The photographs are for use in an Academy newsletter, and may include students, staff, or student work. When referring to people, " +
         "use educational terms like 'teacher' and 'student'. Use the article topic to put the description in context. Use British English spelling."),
       new UserChatMessage(
-        ChatMessageContentPart.CreateTextMessageContentPart($"This photo is from an article on {title}. What does it show?"),
-        ChatMessageContentPart.CreateImageMessageContentPart(photoUri, ImageChatMessageContentPartDetail.Low)
+        ChatMessageContentPart.CreateTextPart($"This photo is from an article on {title}. What does it show?"),
+        ChatMessageContentPart.CreateImagePart(photoUri, ChatImageDetailLevel.Low)
       )
     };
 
@@ -75,7 +76,7 @@ public static class ChatGPT
       Temperature = 0,
       EndUserId = identifier,
       Tools = { describePhotoTool },
-      ToolChoice = new(describePhotoTool)
+      ToolChoice = ChatToolChoice.CreateRequiredChoice()
     };
 
     var response = await _client.CompleteChatAsync(messages, options);
@@ -159,7 +160,7 @@ public static class ChatGPT
       FrequencyPenalty = 0.1f,
       EndUserId = identifier,
       Tools = { writeArticleTool },
-      ToolChoice = new(writeArticleTool)
+      ToolChoice = ChatToolChoice.CreateRequiredChoice()
     };
 
     var response = await _client.CompleteChatAsync(messages, options);
