@@ -21,7 +21,8 @@ public class Mailer
   {
     if (_isDevelopment && ++_totalMessages > 2) return;
     if (_messages.Count >= 500) throw new InvalidOperationException("Too many messages queued");
-    _messages.Add(new PostmarkMessage {
+    _messages.Add(new PostmarkMessage
+    {
       To = _isDevelopment ? replyTo : to,
       From = from,
       ReplyTo = replyTo,
@@ -42,7 +43,8 @@ public class Mailer
     _messages.Clear();
   }
 
-  public static async Task<HashSet<string>> GetSuppressedRecipientsAsync() {
+  public static async Task<HashSet<string>> GetSuppressedRecipientsAsync()
+  {
     var suppressionResponse = await _client.ListSuppressions(new PostmarkSuppressionQuery(), "broadcast");
     return suppressionResponse.Suppressions.Select(o => o.EmailAddress.ToLowerInvariant()).ToHashSet(StringComparer.OrdinalIgnoreCase);
   }

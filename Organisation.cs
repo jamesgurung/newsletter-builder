@@ -24,7 +24,8 @@ public class Organisation
   public string AzureStorageStaticWebsiteAccountKey { get; init; }
 }
 
-public class Reminder {
+public class Reminder
+{
   public int DaysBeforeDeadline { get; set; }
   public string Subject { get; set; }
   public string Message { get; set; }

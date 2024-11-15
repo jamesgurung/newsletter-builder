@@ -24,7 +24,8 @@ public class BlobService(string domain)
   private static StorageSharedKeyCredential credential;
   private static readonly JsonSerializerOptions jsonOptions = new() { WriteIndented = true };
 
-  public async Task UploadImageAsync(string articleKey, string imageName, Stream stream) {
+  public async Task UploadImageAsync(string articleKey, string imageName, Stream stream)
+  {
     ArgumentNullException.ThrowIfNull(imageName);
     var container = client.GetBlobContainerClient("photos");
     var blobName = $"{domain}/{articleKey}/{imageName}";
@@ -54,7 +55,8 @@ public class BlobService(string domain)
   public async Task MoveImagesAsync(string oldArticleKey, string newArticleKey)
   {
     var container = client.GetBlobContainerClient("photos");
-    await foreach (var item in container.GetBlobsByHierarchyAsync(prefix: $"{domain}/{oldArticleKey}/")) {
+    await foreach (var item in container.GetBlobsByHierarchyAsync(prefix: $"{domain}/{oldArticleKey}/"))
+    {
       if (!item.IsBlob) continue;
       var source = container.GetBlockBlobClient(item.Blob.Name);
       var imageName = item.Blob.Name.Split('/').Last();
@@ -114,8 +116,10 @@ public class BlobService(string domain)
     await foreach (var item in sourceContainer.GetBlobsByHierarchyAsync(prefix: $"{domain}/{articleKey}/"))
     {
       if (!item.IsBlob) continue;
-      if (!item.Blob.Name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) &&
-        !item.Blob.Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) continue;
+      if (!item.Blob.Name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) && !item.Blob.Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+      {
+        continue;
+      }
       var source = sourceContainer.GetBlockBlobClient(item.Blob.Name);
       var sourceName = item.Blob.Name.Split('/').Last();
       var index = imageOrder.IndexOf(sourceName);
@@ -127,7 +131,8 @@ public class BlobService(string domain)
     }
   }
 
-  public async Task AppendToNewsletterListAsync(NewsletterListItem item) {
+  public async Task AppendToNewsletterListAsync(NewsletterListItem item)
+  {
     var container = client.GetBlobContainerClient("$web");
     var blob = container.GetBlockBlobClient("list.json");
     var response = await blob.DownloadContentAsync();
@@ -141,7 +146,8 @@ public class BlobService(string domain)
     await blob.UploadAsync(stream, options);
   }
 
-  public async Task PublishNewsletterAsync(string date, string webHtml, string emailHtml, string emailPlainText) {
+  public async Task PublishNewsletterAsync(string date, string webHtml, string emailHtml, string emailPlainText)
+  {
     var container = client.GetBlobContainerClient("$web");
     var files = new[] { ("index.html", webHtml, "text/html"), ("email.html", emailHtml, "text/html"), ("email.txt", emailPlainText, "text/plain") };
     foreach (var (fileName, contents, contentType) in files)
@@ -153,7 +159,8 @@ public class BlobService(string domain)
     }
   }
 
-  public async Task<string> ReadTextAsync(string date, string fileName) {
+  public async Task<string> ReadTextAsync(string date, string fileName)
+  {
     var container = client.GetBlobContainerClient("$web");
     var blob = container.GetBlockBlobClient($"{date}/{fileName}");
     var response = await blob.DownloadContentAsync();

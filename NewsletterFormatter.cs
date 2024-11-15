@@ -6,7 +6,8 @@ namespace NewsletterBuilder;
 
 public static class NewsletterFormatter
 {
-  public static async Task<NewsletterFormats> FormatAsync(string originalHtml, string twitterHandle) {
+  public static async Task<NewsletterFormats> FormatAsync(string originalHtml, string twitterHandle)
+  {
     var htmlTransform = PreMailer.Net.PreMailer.MoveCssInline(originalHtml, removeStyleElements: true, ignoreElements: "#media,#webstyles");
     var htmlBody = htmlTransform.Html;
     var browser = BrowsingContext.New(Configuration.Default);
@@ -64,6 +65,8 @@ public static class NewsletterFormatter
         case "li":
           sb.AppendLine("* " + FormatToPlainText(element));
           break;
+        default:
+          break;
       }
     }
     sb.Replace(Environment.NewLine + Environment.NewLine + Environment.NewLine, Environment.NewLine + Environment.NewLine);
@@ -93,7 +96,7 @@ public static class NewsletterFormatter
           if (href == text) result += text;
           else result += $"{text} ({href})";
         }
-        else if (type == "b" || type == "strong")
+        else if (type is "b" or "strong")
         {
           result += $"*{FormatToPlainText(childElement)}*";
         }
@@ -115,7 +118,8 @@ public static class NewsletterFormatter
   }
 }
 
-public class NewsletterFormats {
+public class NewsletterFormats
+{
   public string WebHtml { get; init; }
   public string EmailHtml { get; init; }
   public string EmailPlainText { get; init; }

@@ -31,7 +31,7 @@ public class ArticlePageModel() : PageModel
     var blobService = new BlobService(domain);
     BlobBaseUrl = $"{BlobService.Uri}photos/";
     BlobSas = blobService.GetSasQueryString();
-    
+
     return Page();
   }
 }

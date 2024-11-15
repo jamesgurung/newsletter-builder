@@ -29,7 +29,8 @@ public class PublishPageModel() : PageModel
     AllArticlesApproved = articles.All(o => o.IsApproved);
     IsSent = newsletter.IsSent;
     Description = newsletter.Description;
-    if (Description is null) {
+    if (Description is null)
+    {
       var textInfo = CultureInfo.InvariantCulture.TextInfo;
       var unlisted = Organisation.ByDomain[domain].UnlistedArticles ?? [];
       var articleTitles = newsletter.ArticleOrder.Split(',')
@@ -42,7 +43,8 @@ public class PublishPageModel() : PageModel
         [] => string.Empty,
         [var el] => el,
         [var el1, var el2] => $"{el1} and {el2}",
-        [..var els] => $"{string.Join(", ", els[..^1])}, and {els[^1]}",
+        [.. var els] => $"{string.Join(", ", els[..^1])}, and {els[^1]}",
+        _ => throw new NotImplementedException()
       };
     }
     return Page();

@@ -9,7 +9,10 @@ public static class AutomationApi
   private static string _automationApiKey;
   private static readonly TimeZoneInfo _britishZone = TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time");
 
-  public static void Configure(string automationApiKey) => _automationApiKey = automationApiKey;
+  public static void Configure(string automationApiKey)
+  {
+    _automationApiKey = automationApiKey;
+  }
 
   public static void MapAutomationApiPaths(this WebApplication app)
   {
@@ -23,7 +26,7 @@ public static class AutomationApi
       var thisOrganisation = Organisation.ByDomain[domain];
       if (n >= thisOrganisation.Reminders.Count) return Results.BadRequest("No reminder found at this index.");
       var reminder = thisOrganisation.Reminders[n];
-      
+
       var now = TimeZoneInfo.ConvertTime(DateTime.UtcNow, TimeZoneInfo.Utc, _britishZone);
       if (!env.IsDevelopment() && now.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) return Results.Conflict("Cannot send emails at the weekend.");
 
@@ -38,7 +41,8 @@ public static class AutomationApi
       var users = (await service.ListUsersAsync()).ToDictionary(o => o.RowKey);
       var mailer = new Mailer();
 
-      foreach (var article in articles) {
+      foreach (var article in articles)
+      {
         var contributors = article.ContributorList.Select(o => users.TryGetValue(o, out var u) ? u : null).Where(o => o is not null && !o.IsEditor).ToList();
         if (contributors.Count == 0) continue;
         var contributorEmails = string.Join(',', contributors.Select(o => $"{o.RowKey}@{o.PartitionKey}"));
@@ -59,7 +63,7 @@ public static class AutomationApi
       }
 
       await mailer.SendAsync();
-      
+
       return Results.Ok();
     });
   }

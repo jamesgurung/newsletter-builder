@@ -23,13 +23,15 @@ public class RenderPageModel() : PageModel
     if (newsletter is null) return NotFound();
     var articles = await tableService.ListArticlesAsync(date);
     var users = (await tableService.ListUsersAsync()).Where(o => !o.IsEditor).ToDictionary(o => o.RowKey, o => o.DisplayName);
-    Articles = OrderArticles(articles, newsletter.ArticleOrder).Select(o => new DisplayArticle {
+    Articles = OrderArticles(articles, newsletter.ArticleOrder).Select(o => new DisplayArticle
+    {
       ShortName = o.ShortName,
       Title = o.Title,
       Content = o.Content is null ? new() { Sections = [] } : JsonSerializer.Deserialize<ArticleContentData>(o.Content),
       AuthorDisplayName = users.TryGetValue(o.ContributorList[0], out var name) ? name : null
     }).ToList();
-    foreach (var article in Articles) {
+    foreach (var article in Articles)
+    {
       if (article.Content.Sections.Count == 0) article.Content.Sections.Add(new());
       AddImageRenderNames(article.ShortName, article.Content.Sections);
     }
@@ -43,16 +45,19 @@ public class RenderPageModel() : PageModel
     return Page();
   }
 
-  public static IList<Article> OrderArticles(IEnumerable<Article> articles, string order) {
+  public static IList<Article> OrderArticles(IEnumerable<Article> articles, string order)
+  {
     var orderDictionary = order?.Split(',').Select((id, pos) => new { Id = id, Pos = pos })
       .ToDictionary(o => o.Id, o => o.Pos) ?? [];
     return [.. articles.OrderBy(o => o.ShortName != "intro").ThenBy(o => orderDictionary.TryGetValue(o.ShortName, out var value) ? value : int.MaxValue)];
   }
 
-  public static void AddImageRenderNames(string articleShortName, IList<ArticleSection> sections) {
+  public static void AddImageRenderNames(string articleShortName, IList<ArticleSection> sections)
+  {
     var count = 1;
     var sectionsWithImages = sections.Where(o => o.IncludeImage).ToList();
-    foreach (var section in sections.Where(o => o.IncludeImage)) {
+    foreach (var section in sections.Where(o => o.IncludeImage))
+    {
       var ext = string.IsNullOrEmpty(section.Image) ? "jpg" : section.Image.Split('.').Last();
       section.ImageRenderName = $"{articleShortName}{(sectionsWithImages.Count == 1 ? string.Empty : count++)}.{ext}";
     }

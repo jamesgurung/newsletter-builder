@@ -132,7 +132,10 @@ public static class ChatGPT
         {
           if (string.IsNullOrEmpty(part.Text)) continue;
           text += part.Text;
-          await hub.Client(chatId).Type(part.Text);
+          if (chatId is not null)
+          {
+            await hub.Client(chatId).Type(part.Text);
+          }
         }
       }
       return text;

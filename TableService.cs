@@ -17,7 +17,8 @@ public class TableService(string domain)
   private static readonly string[] selectRowKey = ["RowKey"];
 
   // Reduces cold start latency by several seconds
-  public static async Task WarmUpAsync() {
+  public static async Task WarmUpAsync()
+  {
     var nonExistentKey = "warmup";
     var tasks = new[]
     {
@@ -222,10 +223,12 @@ public class TableService(string domain)
   }
 }
 
-public static class QueryExtensions {
-  public static async Task<List<T>> ToListAsync<T>(this AsyncPageable<T> query) {
+public static class QueryExtensions
+{
+  public static async Task<List<T>> ToListAsync<T>(this AsyncPageable<T> query)
+  {
     ArgumentNullException.ThrowIfNull(query);
-    var list = new List<T>();  
+    var list = new List<T>();
     await foreach (var item in query)
     {
       list.Add(item);
@@ -233,9 +236,10 @@ public static class QueryExtensions {
     return list;
   }
 
-  public static async Task<int> CountAsync<T>(this AsyncPageable<T> query) {
+  public static async Task<int> CountAsync<T>(this AsyncPageable<T> query)
+  {
     ArgumentNullException.ThrowIfNull(query);
-    var count = 0;  
+    var count = 0;
     await foreach (var item in query)
     {
       count++;

@@ -129,7 +129,8 @@ public static class AuthConfig
 
 }
 
-public static class Roles {
+public static class Roles
+{
   public const string Contributor = nameof(Contributor);
   public const string Editor = nameof(Editor);
 }

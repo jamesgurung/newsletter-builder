@@ -26,14 +26,16 @@ public static class Api
       var articleContents = articles.Where(o => o.Content is not null)
         .Select(o => new { Name = o.ShortName, Content = JsonSerializer.Deserialize<ArticleContentData>(o.Content) }).ToList();
 
-      foreach (var article in articleContents) {
+      foreach (var article in articleContents)
+      {
         RenderPageModel.AddImageRenderNames(article.Name, article.Content.Sections);
       }
 
       var blobBaseUrl = $"{BlobService.Uri}photos/{domain}";
 
       return Results.Ok(articleContents.SelectMany(a => a.Content.Sections.Select(s => new { Key = a.Name, Section = s })
-      .Where(o => o.Section.Image is not null).Select(o => new ArticleImageData {
+      .Where(o => o.Section.Image is not null).Select(o => new ArticleImageData
+      {
         FileName = o.Section.ImageRenderName,
         Url = $"{blobBaseUrl}/{key}_{o.Key}/{o.Section.Image}?{sas}"
       }).ToList()));
@@ -212,7 +214,7 @@ public static class Api
       newsletter.ArticleOrder = order;
       newsletter.LastPublished = null;
       await tableService.UpdateNewsletterAsync(newsletter);
-      
+
       var blobService = new BlobService(domain);
       await blobService.DeleteArticleImagesAsync(key);
       return Results.Ok();
@@ -265,7 +267,7 @@ public static class Api
       dest.ArticleOrder = moveData.DestinationOrder;
       dest.LastPublished = null;
       await tableService.MoveArticleAsync(key, article, source, dest);
-      
+
       var blobService = new BlobService(domain);
       await blobService.MoveImagesAsync(key, article.RowKey);
       return Results.Ok();
@@ -289,7 +291,7 @@ public static class Api
     {
       if (context.Request.ContentLength == 0) return Results.BadRequest("No image submitted.");
       var contentType = context.Request.ContentType;
-      if (contentType != "image/jpeg" && contentType != "image/png") return Results.BadRequest("Only JPG and PNG images are supported.");
+      if (contentType is not "image/jpeg" and not "image/png") return Results.BadRequest("Only JPG and PNG images are supported.");
       var domain = context.User.GetDomain();
       var tableService = new TableService(domain);
       var article = await tableService.GetArticleAsync(key);
@@ -423,7 +425,7 @@ public static class Api
     });
 
     group.MapPost("/newsletters/{key}/send", [Authorize(Roles = Roles.Editor)] async (string key, SendData sendData, HttpContext context,
-      IHubContext <ChatHub, IChatClient> hubContext) =>
+      IHubContext<ChatHub, IChatClient> hubContext) =>
     {
       if (string.IsNullOrEmpty(key)) return Results.BadRequest("Missing newsletter key.");
       var domain = context.User.GetDomain();
@@ -439,11 +441,12 @@ public static class Api
       var currentUserEmail = context.User.GetEmail();
 
       var blobService = new BlobService(domain);
-      string html = await blobService.ReadTextAsync(key, "email.html");
-      string plainText = await blobService.ReadTextAsync(key, "email.txt");
+      var html = await blobService.ReadTextAsync(key, "email.html");
+      var plainText = await blobService.ReadTextAsync(key, "email.txt");
       var mailer = new Mailer();
-      
-      switch (sendData.To) {
+
+      switch (sendData.To)
+      {
         case "preview":
           mailer.Enqueue(context.User.GetEmail(), $"Preview: {title}", thisOrganisation.FromEmail, currentUserEmail, true, html, plainText);
           await mailer.SendAsync();
@@ -463,8 +466,10 @@ public static class Api
           var batches = recipients.Chunk(100).ToList();
           var total = (float)recipients.Count;
           var sent = 0;
-          foreach (var batch in batches) {
-            foreach (var recipient in batch) {
+          foreach (var batch in batches)
+          {
+            foreach (var recipient in batch)
+            {
               mailer.Enqueue(recipient, title, thisOrganisation.FromEmail, null, true, html, plainText);
               sent++;
             }
@@ -483,7 +488,7 @@ public static class Api
           }
 
           newsletter.IsSent = true;
-          await tableService.UpdateNewsletterAsync(newsletter);          
+          await tableService.UpdateNewsletterAsync(newsletter);
           break;
 
         default:
@@ -493,7 +498,8 @@ public static class Api
     });
   }
 
-  private static async Task<bool> ValidateOrderAsync(TableService service, string key, string order, string add = null, string remove = null) {
+  private static async Task<bool> ValidateOrderAsync(TableService service, string key, string order, string add = null, string remove = null)
+  {
     var articles = await service.ListArticlesAsync(key);
     var validKeys = articles.Select(o => o.ShortName).Where(o => o != "intro").ToHashSet();
     if (add is not null) validKeys.Add(add);

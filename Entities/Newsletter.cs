@@ -18,7 +18,8 @@ public class Newsletter : ITableEntity
   public bool IsSent { get; set; }
   public string Description { get; set; }
 
-  public bool IsTimeToSend() {
+  public bool IsTimeToSend()
+  {
     var newsletterDate = DateOnly.ParseExact(RowKey[..10], "yyyy-MM-dd", CultureInfo.InvariantCulture);
     var now = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Europe/London");
     var today = DateOnly.FromDateTime(now);
