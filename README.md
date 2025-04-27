@@ -1,8 +1,8 @@
 # Newsletter Builder
 
-This is a web app which allows multiple users to contribute articles to a school newsletter.
+Newsletter Builder is a web app which allows multiple users to contribute articles to a school newsletter.
 
-## Setup
+### Setup
 
 In this guide we will use the following placeholders:
 * `<your-email-domain>` - the domain of your user email addresses, e.g. `example.com`
@@ -12,7 +12,8 @@ In this guide we will use the following placeholders:
 Here are the steps:
 
 1. Create a general purpose v2 storage account in Microsoft Azure.
-    * Add a private container: `photos`
+    * Add private containers: `photos`, `dataprotection`
+    * Within the `dataprotection` blob container, upload a blank file `keys.xml`. Generate a SAS URL for this file with read/write permissions and a distant expiry. This will be used to store the application's data protection keys so that auth cookies persist across app restarts.
     * Add tables: `articles`, `events`, `newsletters`, `recipients`, `users`
     * The `users` table needs an initial entry, and this must be a valid user on your Azure tenant:
         * PartitionKey - `<your-email-domain>`
@@ -42,7 +43,16 @@ Here are the steps:
 
 5. Create a Postmark server.
 
-6. Create an Azure App Service web app, and configure the following settings:
+6. Create an Azure App Service web app.
+    * Publish mode - Container
+    * Operating system - Linux
+    * Image source - Other container registries
+    * Docker Hub access type - Public
+    * Image and tag - `jamesgurung/newsletter-builder:latest`
+    * Startup command: (blank)
+
+7. Configure the following environment variables for the web app:
+
     * `NewsletterEditorUrl` - the URL of the newsletter editor (`https://<your-newsletter-builder-domain>`)
     * `Organisations__0__Name` - the name of your organisation
     * `Organisations__0__Domain` - the domain for your organisation (`<your-email-domain>`)
@@ -67,11 +77,20 @@ Here are the steps:
     * `Azure__TenantId` - your Azure tenant ID
     * `Azure__StorageAccountName` - the name of your Azure Storage account
     * `Azure__StorageAccountKey` - the key for your Azure Storage account
+    * `Azure__DataProtectionBlobUri` - the SAS URL for the keys file you created earlier
     * `OpenAI__Model` - the name of the OpenAI model to use
     * `OpenAI__Key` - your OpenAI API key
     * `PostmarkServerToken` - the token for your Postmark server
     * `AutomationApiKey` - a secret GUID which is used to authenticate requests to the automation API
 
-7. Deploy to the App Service web app you created.
-
 8. Create scheduled tasks to call the `/api/automate/emailreminders/<your-email-domain>/<n>` endpoints for each reminder you configured, where `<n>` is the index of the reminder.
+
+9. Restart the web app.
+
+### Contributing
+
+If you have a question or feature request, please open an issue.
+
+To contribute improvements to this project, or to adapt the code for the specific needs of your organisation, you are welcome to fork the repository.
+
+Pull requests are welcome; please open an issue first to discuss.

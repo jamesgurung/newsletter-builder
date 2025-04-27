@@ -1,12 +1,23 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.HttpOverrides;
 using NewsletterBuilder;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+  o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+  o.KnownNetworks.Clear();
+  o.KnownProxies.Clear();
+});
 
 builder.Services.Configure<FormOptions>(options =>
 {
   options.MemoryBufferThreshold = 2 * 1024 * 1024;
 });
+
+builder.Services.AddDataProtection().PersistKeysToAzureBlobStorage(new Uri(builder.Configuration["Azure:DataProtectionBlobUri"]));
 
 var storageAccountName = builder.Configuration["Azure:StorageAccountName"];
 var storageAccountKey = builder.Configuration["Azure:StorageAccountKey"];
@@ -52,6 +63,7 @@ if (!app.Environment.IsDevelopment())
   app.UseHsts();
 }
 
+app.UseForwardedHeaders();
 app.UseResponseCompression();
 app.UseHttpsRedirection();
 app.UseStaticFiles();

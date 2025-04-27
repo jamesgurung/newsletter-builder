@@ -25,7 +25,7 @@ public class PublishPageModel() : PageModel
     IsTimeToSend = newsletter.IsTimeToSend();
     CoverImageSet = !string.IsNullOrEmpty(newsletter.CoverPhoto);
     var articles = await tableService.ListArticlesAsync(date);
-    IsPublished = newsletter.LastPublished is not null && newsletter.LastPublished > articles.Select(o => o.Timestamp).Max();
+    IsPublished = newsletter.LastPublished is not null && newsletter.LastPublished > articles.Max(o => o.Timestamp);
     AllArticlesApproved = articles.All(o => o.IsApproved);
     IsSent = newsletter.IsSent;
     Description = newsletter.Description;

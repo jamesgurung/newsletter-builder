@@ -48,7 +48,7 @@ public static class AuthConfig
             {
               context.RejectPrincipal();
               await context.HttpContext.SignOutAsync();
-            };
+            }
           }
         };
       })
@@ -67,7 +67,7 @@ public static class AuthConfig
             {
               context.Response.Redirect("/auth/denied");
               context.HandleResponse();
-            };
+            }
           }
         };
       });
