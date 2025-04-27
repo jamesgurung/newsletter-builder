@@ -1,47 +1,56 @@
 # Newsletter Builder
 
-Newsletter Builder is a web app which allows multiple users to contribute articles to a school newsletter.
+Newsletter Builder is a free, open-source web application that makes school newsletters a team effort. Easily invite contributors, streamline article creation, and publish vibrant newsletters.
+
+![Screenshot of Newsletter Builder](screenshot.png)
+
+### Features
+
+* Easy-to-use, minimalistic interface
+* Articles can be scheduled in advance and assigned to contributors
+* Automated reminder emails to keep contributors on track
+* Consistent, professional presentation of text and photos
+* Photo consent confirmation
+* AI-powered feedback on article content and style
+* Quality assurance process for editors to check articles before publishing
+* Upcoming event calendar included at the bottom of every newsletter
+* Recipient management
+* One-click publication by email and to a public website
+* Single sign-on (SSO) using Microsoft 365
 
 ### Setup
 
-In this guide we will use the following placeholders:
-* `<your-email-domain>` - the domain of your user email addresses, e.g. `example.com`
-* `<your-newsletter-domain>` - the domain where your newsletter static website will be available via the Azure CDN, e.g. `newsletter.example.com`
-* `<your-newsletter-builder-domain>` - the domain where the newsletter builder app will be hosted, e.g. `build.newsletter.example.com`
+1. Create a Postmark server.
 
-Here are the steps:
+2. Create an OpenAI account and generate an API key.
 
-1. Create a general purpose v2 storage account in Microsoft Azure.
+3. Create a general purpose v2 storage account in Microsoft Azure.
     * Add private containers: `photos`, `dataprotection`
     * Within the `dataprotection` blob container, upload a blank file `keys.xml`. Generate a SAS URL for this file with read/write permissions and a distant expiry. This will be used to store the application's data protection keys so that auth cookies persist across app restarts.
     * Add tables: `articles`, `events`, `newsletters`, `recipients`, `users`
     * The `users` table needs an initial entry, and this must be a valid user on your Azure tenant:
-        * PartitionKey - `<your-email-domain>`
-        * RowKey - `<username>`
+        * PartitionKey - the email domain of the user (everything after the `@` symbol)
+        * RowKey - the email name of the user (everything before the `@` symbol)
         * IsEditor - `true`
-        * FirstName - `<your-first-name>`
-        * DisplayName - `<your-title-and-surname>`
+        * FirstName - the user's first name
+        * DisplayName - the user's title and surname
     * Enable static website hosting, and set the index document to `index.html` and the error document to `404.html`. This will create a `$web` blob container, which will be the root of the public-facing newsletter website.
     * Customise the contents of the `StaticWebsite` folder in this repository, for example replacing placeholders with their appropriate values. Then upload to the `$web` blob container. Also upload `logo.jpg` (250x250px), `logo-hd.jpg` (1200x1200px), `favicon.ico`, and `icon-192x192.png`.
-    * Enable CORS for blob `GET` requests from `https://<your-newsletter-builder-domain>`.
+    * Enable CORS for blob `GET` requests from the domain where the newsletter builder will be hosted (e.g. `https://build.newsletter.example.com`).
 
-2. Create an Azure CDN endpoint with the static website as its origin, and a custom domain set to `https://<your-newsletter-domain>`. Enable compression. Add the following rules:
+4. Create an Azure CDN endpoint with the static website as its origin, and a custom domain set for where you would like your newsletter to be available online (e.g. `newsletter.example.com`). Enable compression. Add the following rules:
     * If request protocol = `HTTP` then URL redirect Found (302), HTTPS 
     * If URL file extension = `jpg`, `png`, `pdf`, `css`, or `js` (lowercase) then modify response header: overwrite `Cache-Control` `max-age=31536000`, and then cache expiration: override `365` days.
     * If URL file extension = `json`, `html`, or `txt` (lowercase) then modify response header: overwrite `Cache-Control` `no-cache`, and then cache expiration: bypass cache.
     * If URL path does not contain `.` then modify response header: overwrite `Cache-Control` `no-cache`, and then cache expiration: bypass cache.
 
-3. Create an Azure app registration.
+5. Create an Azure app registration.
     * Name - `Newsletter Builder`
     * Redirect URI - `https://<your-newsletter-builder-domain>/signin-oidc`
-    * Implicit grant - `ID tokens`
-    * Supported account types - `Accounts in this organizational directory only`
+    * Implicit grant - ID tokens
+    * Supported account types - Accounts in this organizational directory only
     * API permissions - `Microsoft Graph - User.Read`
-    * Token configuration - add optional claim of type `ID`: `upn`
-
-4. Create an Azure OpenAI Service GPT-4 deployment.
-
-5. Create a Postmark server.
+    * Token configuration - add optional claim of type ID: `upn`
 
 6. Create an Azure App Service web app.
     * Publish mode - Container
@@ -53,10 +62,10 @@ Here are the steps:
 
 7. Configure the following environment variables for the web app:
 
-    * `NewsletterEditorUrl` - the URL of the newsletter editor (`https://<your-newsletter-builder-domain>`)
+    * `NewsletterEditorUrl` - the URL of the newsletter editor
     * `Organisations__0__Name` - the name of your organisation
-    * `Organisations__0__Domain` - the domain for your organisation (`<your-email-domain>`)
-    * `Organisations__0__NewsletterUrl` - the URL of the published newsletter (`https://<your-newsletter-domain>`)
+    * `Organisations__0__Domain` - the domain of your user email addresses, e.g. `example.com`
+    * `Organisations__0__NewsletterUrl` - the URL of the published newsletter
     * `Organisations__0__Address` - the address of your organisation
     * `Organisations__0__Footer` - the footer text to include in emails
     * `Organisations__0__BannedWords` - a JSON array of words which are not allowed in articles
@@ -84,8 +93,6 @@ Here are the steps:
     * `AutomationApiKey` - a secret GUID which is used to authenticate requests to the automation API
 
 8. Create scheduled tasks to call the `/api/automate/emailreminders/<your-email-domain>/<n>` endpoints for each reminder you configured, where `<n>` is the index of the reminder.
-
-9. Restart the web app.
 
 ### Contributing
 
