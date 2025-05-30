@@ -197,7 +197,7 @@ public class TableService(string domain)
     ArgumentNullException.ThrowIfNull(recipients);
     recipients = recipients.Select(o => o.Trim().ToLowerInvariant()).Where(o => o.Contains('@', StringComparison.OrdinalIgnoreCase)).Distinct().ToList();
     var table = client.GetTableClient("recipients");
-    var existing = await client.GetTableClient("recipients").QueryAsync<Recipient>(o => o.PartitionKey == domain).ToListAsync();
+    var existing = await table.QueryAsync<Recipient>(o => o.PartitionKey == domain).ToListAsync();
     var existingHashSet = new HashSet<string>(existing.Select(o => o.RowKey), StringComparer.OrdinalIgnoreCase);
     var newHashSet = new HashSet<string>(recipients, StringComparer.OrdinalIgnoreCase);
 
@@ -211,12 +211,46 @@ public class TableService(string domain)
       allOperations.Add(new TableTransactionAction(TableTransactionActionType.Delete, new Recipient { PartitionKey = domain, RowKey = existingRecipient.RowKey }, ETag.All));
     }
 
-    var batches = allOperations.Select((o, i) => new { Index = i, Value = o })
-      .GroupBy(o => o.Index / 100)
-      .Select(o => o.Select(v => v.Value).ToList())
-      .ToList();
+    var batches = allOperations.Select((o, i) => new { Index = i, Value = o }).GroupBy(o => o.Index / 100).Select(o => o.Select(v => v.Value).ToList()).ToList();
 
     foreach (var batch in batches)
+    {
+      await table.SubmitTransactionAsync(batch);
+    }
+  }
+
+  public async Task ReplaceUsersAsync(IList<string> csvUsers)
+  {
+    ArgumentNullException.ThrowIfNull(csvUsers);
+    var table = client.GetTableClient("users");
+    var existing = await table.QueryAsync<User>(o => o.PartitionKey == domain).ToListAsync();
+    var existingHashSet = new HashSet<string>(existing.Select(o => $"{o.RowKey},{o.FirstName},{o.DisplayName}"), StringComparer.OrdinalIgnoreCase);
+    var newHashSet = new HashSet<string>(csvUsers, StringComparer.OrdinalIgnoreCase);
+
+    var deleteOperations = new List<TableTransactionAction>();
+    foreach (var existingUser in existingHashSet.Where(o => !newHashSet.Contains(o)))
+    {
+      deleteOperations.Add(new TableTransactionAction(TableTransactionActionType.Delete, new User { PartitionKey = domain, RowKey = existingUser.Split(',')[0] }, ETag.All));
+    }
+
+    var insertOperations = new List<TableTransactionAction>();
+    foreach (var newUser in csvUsers.Where(o => !existingHashSet.Contains(o)))
+    {
+      var parts = newUser.Split(',');
+      insertOperations.Add(new TableTransactionAction(TableTransactionActionType.Add, new User
+      {
+        PartitionKey = domain,
+        RowKey = parts[0],
+        FirstName = parts[1],
+        DisplayName = parts[2],
+        IsEditor = false
+      }));
+    }
+
+    var deleteBatches = deleteOperations.Select((o, i) => new { Index = i, Value = o }).GroupBy(o => o.Index / 100).Select(o => o.Select(v => v.Value).ToList()).ToList();
+    var insertBatches = insertOperations.Select((o, i) => new { Index = i, Value = o }).GroupBy(o => o.Index / 100).Select(o => o.Select(v => v.Value).ToList()).ToList();
+
+    foreach (var batch in deleteBatches.Concat(insertBatches))
     {
       await table.SubmitTransactionAsync(batch);
     }
