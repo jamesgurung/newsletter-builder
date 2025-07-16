@@ -12,14 +12,14 @@ public static class NewsletterFormatter
     var htmlBody = htmlTransform.Html;
     var browser = BrowsingContext.New(Configuration.Default);
     var document = await browser.OpenAsync(req => req.Content(htmlBody));
-    var title = document.GetElementsByTagName("h1").FirstOrDefault().TextContent.Trim();
+    var title = document.GetElementsByTagName("h1")[0].TextContent.Trim();
     var intro = document.GetElementById("intro").TextContent.Trim();
     var preheader = document.GetElementById("preheader");
     preheader.TextContent = intro;
 
     var webDocument = await browser.OpenAsync(req => req.Content(document.ToHtml()));
     webDocument.GetElementById("footer").Remove();
-    webDocument.GetElementsByTagName("hr").Last().Remove();
+    webDocument.GetElementsByTagName("hr")[^1].Remove();
     webDocument.Head.InnerHtml +=
       $"\n  <title>{title}</title>\n" +
       $"  <meta name=\"description\" content=\"{intro.Replace("\"", "&quot;", StringComparison.OrdinalIgnoreCase)}\" />\n" +
