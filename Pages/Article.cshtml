@@ -100,13 +100,14 @@
     const isOwner = @Model.IsOwner.ToString().ToLowerInvariant();
     const articleKey = '@Model.Article.RowKey';
     const isIntro = @((Model.Article.Title == "Intro").ToString().ToLowerInvariant());
-    let content = @Html.Raw(Model.Article.Content ?? "null");
-    let isSubmitted = @Model.Article.IsSubmitted.ToString().ToLowerInvariant();
-    let isApproved = @Model.Article.IsApproved.ToString().ToLowerInvariant();
     const blobBaseUrl = '@Html.Raw(Model.BlobBaseUrl)';
     const sas = '@Html.Raw(Model.BlobSas)';
     const bannedWords = @Html.Raw(thisOrganisation.BannedWords is null ? "[]" : thisOrganisation.BannedWords);
+    let content = @Html.Raw(Model.Article.Content ?? "null");
+    let isSubmitted = @Model.Article.IsSubmitted.ToString().ToLowerInvariant();
+    let isApproved = @Model.Article.IsApproved.ToString().ToLowerInvariant();
     let coverPhoto = @Html.Raw($"\"{Model.CoverPhoto}\"" ?? "null");
+    let etag = @Json.Serialize(Model.Article.ETag);
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" integrity="sha512-JyCZjCOZoyeQZSd5+YEAcFgz2fowJ1F1hyJOXgtKu4llIa0KneLcidn5bwfutiehUTiOuK87A986BZJMko0eWQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="/js/shared.js" asp-append-version="true"></script>

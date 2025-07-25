@@ -1,16 +1,18 @@
-﻿using System.ClientModel;
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Azure;
+using Azure.AI.OpenAI;
 using OpenAI.Chat;
 
 namespace NewsletterBuilder;
 
-public static class ChatGPT
+public static class AIService
 {
-  public static void Configure(string apiKey, string modelName)
+  public static void Configure(string endpoint, string deploymentName, string apiKey)
   {
-    _client = new ChatClient(modelName, new ApiKeyCredential(apiKey));
+    var azureClient = new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(apiKey));
+    _client = azureClient.GetChatClient(deploymentName);
   }
 
   private static ChatClient _client;

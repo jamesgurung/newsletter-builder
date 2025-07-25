@@ -281,11 +281,15 @@ public static class Api
       var service = new TableService(domain);
       var article = await service.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
+      if (article.ETag.ToString() != contentData.ETag)
+      {
+        return Results.Conflict("Article has been modified by another user.");
+      }
       if (!context.User.IsInRole(Roles.Editor) && (!article.ContributorList.Contains(context.User.GetUsername()) || article.IsSubmitted)) return Results.Forbid();
       var isBlank = string.IsNullOrEmpty(contentData.Headline) && contentData.Sections.All(o => string.IsNullOrEmpty(o.Text) && string.IsNullOrEmpty(o.Image));
       article.Content = isBlank ? null : JsonSerializer.Serialize(contentData);
       await service.UpdateArticleAsync(article);
-      return Results.Ok();
+      return Results.Ok(article.ETag);
     });
 
     group.MapPost("/articles/{key}/image", async (string key, HttpContext context) =>
@@ -314,7 +318,7 @@ public static class Api
       var blobService = new BlobService(domain);
       var sas = blobService.GetSasQueryString(key, imageName);
       var imageUrl = $"{BlobService.Uri}photos/{domain}/{key}/{imageName}?{sas}";
-      var description = await ChatGPT.DescribePhotoAsync(new Uri(imageUrl), article.Title, key);
+      var description = await AIService.DescribePhotoAsync(new Uri(imageUrl), article.Title, key);
       return Results.Ok(description);
     });
 
@@ -382,14 +386,14 @@ public static class Api
 
     group.MapPost("/aiwrite", async (WriteArticleRequest writeRequest) =>
     {
-      var response = await ChatGPT.WriteArticleAsync(writeRequest.Headline, writeRequest.Content, writeRequest.Paragraphs, writeRequest.Identifier);
+      var response = await AIService.WriteArticleAsync(writeRequest.Headline, writeRequest.Content, writeRequest.Paragraphs, writeRequest.Identifier);
       return Results.Ok(response);
     });
 
     group.MapPost("/aifeedback", async (ArticleFeedbackRequest feedbackRequest, HttpResponse response) =>
     {
       response.ContentType = "text/plain; charset=utf-8";
-      await foreach (var token in ChatGPT.RequestArticleFeedbackAsync(feedbackRequest.Headline, feedbackRequest.Content, feedbackRequest.Identifier))
+      await foreach (var token in AIService.RequestArticleFeedbackAsync(feedbackRequest.Headline, feedbackRequest.Content, feedbackRequest.Identifier))
       {
         await response.WriteAsync(token);
         await response.Body.FlushAsync();

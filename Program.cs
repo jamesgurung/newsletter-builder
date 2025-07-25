@@ -35,7 +35,7 @@ builder.Services.AddAntiforgery(options => { options.HeaderName = "X-XSRF-TOKEN"
 builder.Services.Configure<RouteOptions>(options => { options.LowercaseUrls = true; });
 builder.Services.AddRazorPages(options => { options.Conventions.AllowAnonymousToFolder("/auth"); });
 
-ChatGPT.Configure(builder.Configuration["OpenAI:Key"], builder.Configuration["OpenAI:Model"]);
+AIService.Configure(builder.Configuration["Azure:AIFoundryEndpoint"], builder.Configuration["Azure:AIFoundryDeployment"], builder.Configuration["Azure:AIFoundryApiKey"]);
 
 var app = builder.Build();
 

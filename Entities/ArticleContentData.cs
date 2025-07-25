@@ -9,6 +9,8 @@ public class ArticleContentData
   public string Headline { get; init; }
   [JsonPropertyName("sections")]
   public IList<ArticleSection> Sections { get; init; }
+  [JsonPropertyName("etag")]
+  public string ETag { get; init; }
 }
 
 public class ArticleSection

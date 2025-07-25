@@ -122,8 +122,10 @@ public class TableService(string domain)
 
   public async Task UpdateArticleAsync(Article article)
   {
+    ArgumentNullException.ThrowIfNull(article);
     var table = client.GetTableClient("articles");
-    await table.UpdateEntityAsync(article, ETag.All, TableUpdateMode.Replace);
+    var resp = await table.UpdateEntityAsync(article, article.ETag, TableUpdateMode.Replace);
+    article.ETag = resp.Headers.ETag.Value;
   }
 
   public async Task<CalendarEvent> GetEventAsync(string key)

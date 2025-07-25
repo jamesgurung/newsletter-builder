@@ -109,11 +109,18 @@ async function save() {
         alt: altText ? altText : null,
         consent: consent
       };
-    })
+    }),
+    etag
   };
   const resp = await request(`/api/articles/${articleKey}/content`, 'PUT', content);
-  if (resp.ok) document.getElementById('requestaifeedback').classList.remove('disabled');
-  return resp.ok;
+  if (!resp.ok) {
+    saved = true;
+    window.location.reload();
+    return false;
+  }
+  document.getElementById('requestaifeedback').classList.remove('disabled');
+  etag = await resp.json();
+  return true;
 }
 
 function configureInput(elements) {
