@@ -37,6 +37,8 @@ builder.Services.AddRazorPages(options => { options.Conventions.AllowAnonymousTo
 
 AIService.Configure(builder.Configuration["Azure:AIFoundryEndpoint"], builder.Configuration["Azure:AIFoundryDeployment"], builder.Configuration["Azure:AIFoundryApiKey"]);
 
+builder.Services.AddHostedService<ReminderService>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

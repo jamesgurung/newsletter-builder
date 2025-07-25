@@ -88,12 +88,11 @@ Newsletter Builder is a free, open-source web application that makes school news
     * `Organisations__0__Reminders__0__DaysBeforeDeadline` - the number of days before the publish date to send the first reminder (subsequent reminders can be set up by adding additional items with incrementing indices)
     * `Organisations__0__Reminders__0__Message` - the message to include in the reminder email
     * `Organisations__0__Reminders__0__Subject` - the subject of the reminder email
+    * `Organisations__0__Reminders__0__Time` - the time of day to send the reminder email, in the format `HH:mm` (24-hour clock)
     * `Organisations__0__SocialMediaEmail` - the email address to receive requests to share the newsletter on social media
     * `Organisations__0__TwitterHandle` - the Twitter handle of your organisation, starting with an @ symbol
     * `Organisations__0__UnlistedArticles__0` - an article name which should not be listed on the index page, for example a regular standing item (subsequent unlisted articles can be set up by adding additional items with incrementing indices)
     * `PostmarkServerToken` - the token for your Postmark server
-
-8. Create scheduled tasks to call the `/api/automate/emailreminders/<your-email-domain>/<n>` endpoints for each reminder you configured, where `<n>` is the index of the reminder.
 
 ### Contributing
 
