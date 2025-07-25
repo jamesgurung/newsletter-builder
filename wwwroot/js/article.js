@@ -8,7 +8,6 @@ const repeatedSpaces = /\s\s+/g;
 
 let inputsIdx = 0;
 let saved = true;
-let typing = false;
 
 // Load article
 
@@ -527,12 +526,6 @@ function updateCoverPhotoLinks() {
 
 // AI feedback
 
-const connection = new signalR.HubConnectionBuilder().configureLogging(signalR.LogLevel.Warning).withUrl('/chat').withAutomaticReconnect().build();
-connection.start();
-document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible' && connection.state === signalR.HubConnectionState.Disconnected) await connection.start();
-});
-
 document.getElementById('requestaifeedback').addEventListener('click', async e => {
   if (e.target.classList.contains('disabled')) return;
   if (!isValid('request review')) return;
@@ -543,33 +536,30 @@ document.getElementById('requestaifeedback').addEventListener('click', async e =
   document.getElementById('aifeedback').style.display = '';
   document.getElementById('aifeedbackfinish').style.display = 'none';
   window.scrollTo(0, document.body.scrollHeight);
-  typing = true;
   const resp = await request(`/api/aifeedback`, 'POST', {
     Identifier: articleKey,
     Headline: content.headline,
-    Content: content.sections.map(s => s.text + '\n' + (s.includeImage ? (s.altText ? `[Photo - Caption: ${s.altText}]` : '[Photo]') : '')).join('\n'),
-    ConnectionId: connection.connectionId
+    Content: content.sections.map(s => s.text + '\n' + (s.includeImage ? (s.altText ? `[Photo - Caption: ${s.altText}]` : '[Photo]') : '')).join('\n')
   });
-  typing = false;
-  const bullets = await resp.json();
-  const html = bullets.split('\n')
-    .filter(o => o)
-    .map(o => o.slice(2).trim())
-    .map(o => `<li>${o}</li>`)
-    .join('');
-  div.innerHTML = '<ul>' + html + '</ul>';
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let feedback = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    const token = decoder.decode(value);
+    feedback += token;
+    const html = feedback.split('\n')
+      .filter(o => o)
+      .map(o => o.slice(2).trim())
+      .map(o => `<li>${o}</li>`)
+      .join('');
+    div.innerHTML = '<ul>' + html + '</ul>';
+  }
   document.getElementById('aifeedbackbubble').style.display = 'none';
   document.getElementById('aifeedbackfinish').style.display = '';
   document.getElementById('submit').style.display = '';
-});
-
-const chat = document.getElementById('aifeedbackcontent');
-connection.on('Type', function (token) {
-  if (!typing) return;
-  if (chat.innerHTML.length === 0) chat.innerHTML = '<ul></ul>';
-  const ul = chat.getElementsByTagName('ul')[0];
-  if (token === '*') ul.appendChild(document.createElement("li"));
-  else ul.querySelector('li:last-child').textContent += token.replace(/\n/g, ' ');
 });
 
 // AI writing

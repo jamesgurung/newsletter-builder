@@ -37,8 +37,6 @@ builder.Services.AddRazorPages(options => { options.Conventions.AllowAnonymousTo
 
 ChatGPT.Configure(builder.Configuration["OpenAI:Key"], builder.Configuration["OpenAI:Model"]);
 
-builder.Services.AddSignalR();
-
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -72,7 +70,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-app.MapHub<ChatHub>("/chat");
 app.MapRazorPages();
 app.MapAuthPaths();
 app.MapApiPaths();

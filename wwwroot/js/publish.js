@@ -1,9 +1,3 @@
-const connection = new signalR.HubConnectionBuilder().configureLogging(signalR.LogLevel.Warning).withUrl('/chat').withAutomaticReconnect().build();
-connection.start();
-document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible' && connection.state === signalR.HubConnectionState.Disconnected) await connection.start();
-});
-
 document.getElementById('publish')?.addEventListener('click', async () => {
   const desc = prompt('To publish this newsletter, please enter a description.', description);
   if (!desc) return;
@@ -22,7 +16,7 @@ async function sendEmails(e) {
     document.getElementById('send-box').textContent = 'Sending...';
     document.getElementById('progress').style.display = 'block';
   }
-  var resp = await request(`/api/newsletters/${key}/send`, 'POST', { to: to, connectionId: connection.connectionId });
+  var resp = await request(`/api/newsletters/${key}/send`, 'POST', { to });
   if (!resp.ok) {
     document.getElementById('send-box').innerHTML = '<span class="red">Sending failed.</span>';
     document.getElementById('progress').style.display = 'none';
@@ -33,11 +27,16 @@ async function sendEmails(e) {
   } else if (to === 'qa') {
     alert('QA message sent.');
   } else if (to === 'all') {
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      const perc = decoder.decode(value);
+      document.getElementById('progress-bar').style.width = `${perc}%`;
+    }
     document.getElementById('send-box').innerHTML = '<span class="green">Done</span>';
     document.getElementById('progress-bar').style.width = '100%';
   }
 }
-
-connection.on('SendProgress', function (perc) {
-  document.getElementById('progress-bar').style.width = `${perc}%`;
-});

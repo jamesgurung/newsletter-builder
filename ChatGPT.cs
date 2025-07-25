@@ -1,7 +1,7 @@
 ﻿using System.ClientModel;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.SignalR;
 using OpenAI.Chat;
 
 namespace NewsletterBuilder;
@@ -86,10 +86,8 @@ public static class ChatGPT
     return (data.Subject == "other") ? "invalid" : data.AltText.TrimEnd('.');
   }
 
-  public static async Task<string> RequestArticleFeedbackAsync(string headline, string text, string identifier, IHubClients<IChatClient> hub, string chatId)
+  public static async IAsyncEnumerable<string> RequestArticleFeedbackAsync(string headline, string text, string identifier)
   {
-    ArgumentNullException.ThrowIfNull(hub);
-
     var systemPrompt = "You are a friendly and helpful assistant. " +
       "You always respond in bullet points, using a '*' character, with no introduction. " +
       "You do not use subheadings or bullet point headings. " +
@@ -116,29 +114,31 @@ public static class ChatGPT
       "* Provide feedback on the writing style (it should be a balance of professional and casual, upbeat, and highly engaging). " +
       "Give a few examples of how parts could be reworded, if this is needed.";
 
-    var spagResponse = await CompleteChatStreamingAsync([new SystemChatMessage(systemPrompt), new UserChatMessage(spagPrompt)], new() { Temperature = 0.1f, TopP = 0.5f, EndUserId = identifier });
+    var spagStreamingResult = _client.CompleteChatStreamingAsync([new SystemChatMessage(systemPrompt), new UserChatMessage(spagPrompt)],
+      new() { Temperature = 0.1f, TopP = 0.5f, EndUserId = identifier });
+    var spagBuilder = new StringBuilder();
 
-    var styleResponse = await CompleteChatStreamingAsync([new SystemChatMessage(systemPrompt), new UserChatMessage(spagPrompt), new AssistantChatMessage(spagResponse),
+    await foreach (var update in spagStreamingResult)
+    {
+      foreach (var part in update.ContentUpdate)
+      {
+        if (string.IsNullOrEmpty(part.Text)) continue;
+        spagBuilder.Append(part.Text);
+        yield return part.Text;
+      }
+    }
+    yield return "\n";
+
+    var styleStreamingResult = _client.CompleteChatStreamingAsync([new SystemChatMessage(systemPrompt), new UserChatMessage(spagPrompt), new AssistantChatMessage(spagBuilder.ToString()),
       new UserChatMessage(stylePrompt)], new() { Temperature = 0.3f, TopP = 0.8f, EndUserId = identifier });
 
-    return $"{spagResponse}\n{styleResponse}";
-
-    async Task<string> CompleteChatStreamingAsync(IEnumerable<ChatMessage> messages, ChatCompletionOptions options)
+    await foreach (var update in styleStreamingResult)
     {
-      var text = string.Empty;
-      await foreach (var update in _client.CompleteChatStreamingAsync(messages, options))
+      foreach (var part in update.ContentUpdate)
       {
-        foreach (var part in update.ContentUpdate)
-        {
-          if (string.IsNullOrEmpty(part.Text)) continue;
-          text += part.Text;
-          if (chatId is not null)
-          {
-            await hub.Client(chatId).Type(part.Text);
-          }
-        }
+        if (string.IsNullOrEmpty(part.Text)) continue;
+        yield return part.Text;
       }
-      return text;
     }
   }
 

@@ -2,8 +2,8 @@
 
 [assembly: SuppressMessage("Quality", "CA1016:Mark assemblies with assembly version", Justification = "Not needed")]
 [assembly: SuppressMessage("Design", "CA1056:URI-like properties should not be strings", Justification = "Intentionally string.")]
-[assembly: SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "Some strings are stored in lowercase.")]
-[assembly: SuppressMessage("Maintainability", "CA1515:Consider making public types internal", Justification = "SignalR requires public types at runtime")]
+[assembly: SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "Some strings are stored in lowercase")]
+[assembly: SuppressMessage("Maintainability", "CA1515:Consider making public types internal", Justification = "Not a library")]
 [assembly: SuppressMessage("Performance", "CA1812:Avoid uninstantiated public classes", Justification = "Instantiated through JSON deserialisation")]
 [assembly: SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Consistent API", Scope = "member", Target = "~M:NewsletterBuilder.BlobService.GetSasQueryString~System.String")]
 [assembly: SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Consistent API", Scope = "member", Target = "~M:NewsletterBuilder.TableService.CreateUserAsync(NewsletterBuilder.Entities.User)~System.Threading.Tasks.Task")]

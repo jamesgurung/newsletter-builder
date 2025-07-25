@@ -2,9 +2,10 @@
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using NewsletterBuilder.Entities;
 using NewsletterBuilder.Pages;
+using System.Globalization;
+using System.Text;
 using System.Text.Json;
 
 namespace NewsletterBuilder;
@@ -379,17 +380,20 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapPost("/aiwrite", async (WriteArticleRequest writeRequest, IHubContext<ChatHub, IChatClient> hubContext) =>
+    group.MapPost("/aiwrite", async (WriteArticleRequest writeRequest) =>
     {
       var response = await ChatGPT.WriteArticleAsync(writeRequest.Headline, writeRequest.Content, writeRequest.Paragraphs, writeRequest.Identifier);
       return Results.Ok(response);
     });
 
-    group.MapPost("/aifeedback", async (ArticleFeedbackRequest feedbackRequest, IHubContext<ChatHub, IChatClient> hubContext) =>
+    group.MapPost("/aifeedback", async (ArticleFeedbackRequest feedbackRequest, HttpResponse response) =>
     {
-      var response = await ChatGPT.RequestArticleFeedbackAsync(feedbackRequest.Headline, feedbackRequest.Content, feedbackRequest.Identifier,
-        hubContext.Clients, feedbackRequest.ConnectionId);
-      return Results.Ok(response);
+      response.ContentType = "text/plain; charset=utf-8";
+      await foreach (var token in ChatGPT.RequestArticleFeedbackAsync(feedbackRequest.Headline, feedbackRequest.Content, feedbackRequest.Identifier))
+      {
+        await response.WriteAsync(token);
+        await response.Body.FlushAsync();
+      }
     });
 
     group.MapPost("/recipients", [Authorize(Roles = Roles.Editor)] async (RecipientData recipientsData, HttpContext context) =>
@@ -424,8 +428,7 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapPost("/newsletters/{key}/send", [Authorize(Roles = Roles.Editor)] async (string key, SendData sendData, HttpContext context,
-      IHubContext<ChatHub, IChatClient> hubContext) =>
+    group.MapPost("/newsletters/{key}/send", [Authorize(Roles = Roles.Editor)] async (string key, SendData sendData, HttpContext context) =>
     {
       if (string.IsNullOrEmpty(key)) return Results.BadRequest("Missing newsletter key.");
       var domain = context.User.GetDomain();
@@ -433,6 +436,7 @@ public static class Api
       var newsletter = await tableService.GetNewsletterAsync(key);
       if (newsletter is null) return Results.NotFound("Newsletter not found.");
       if (newsletter.LastPublished is null) return Results.BadRequest("Newsletter has not been published.");
+      if (newsletter.IsSent) return Results.BadRequest("Newsletter has already been sent.");
       var articles = await tableService.ListArticlesAsync(key);
       if (articles.Any(o => o.Timestamp > newsletter.LastPublished)) return Results.BadRequest("Newsletter has been updated since last publish.");
       var introContent = JsonSerializer.Deserialize<ArticleContentData>(articles.Single(o => o.ShortName == "intro").Content);
@@ -459,41 +463,46 @@ public static class Api
 
         case "all":
           if (!newsletter.IsTimeToSend()) return Results.BadRequest("It is too early to send this newsletter.");
-          var allRecipientsIncludingSuppressed = await tableService.ListRecipientsAsync();
-          var suppressed = await Mailer.GetSuppressedRecipientsAsync();
-          var recipients = allRecipientsIncludingSuppressed.Where(o => !suppressed.Contains(o)).ToList();
-
-          var batches = recipients.Chunk(100).ToList();
-          var total = (float)recipients.Count;
-          var sent = 0;
-          foreach (var batch in batches)
+          return Results.Stream(async (outputStream) =>
           {
-            foreach (var recipient in batch)
+            var allRecipientsIncludingSuppressed = await tableService.ListRecipientsAsync();
+            var suppressed = await Mailer.GetSuppressedRecipientsAsync();
+            var recipients = allRecipientsIncludingSuppressed.Where(o => !suppressed.Contains(o)).ToList();
+
+            var batches = recipients.Chunk(100).ToList();
+            var total = (float)recipients.Count;
+            var sent = 0;
+            foreach (var batch in batches)
             {
-              mailer.Enqueue(recipient, title, thisOrganisation.FromEmail, null, true, html, plainText);
-              sent++;
+              foreach (var recipient in batch)
+              {
+                mailer.Enqueue(recipient, title, thisOrganisation.FromEmail, null, true, html, plainText);
+                sent++;
+              }
+              await mailer.SendAsync();
+              var perc = (int)(sent / total * 100.0f);
+              var bytes = Encoding.UTF8.GetBytes(perc.ToString(CultureInfo.InvariantCulture));
+              await outputStream.WriteAsync(bytes);
+              await outputStream.FlushAsync();
             }
-            await mailer.SendAsync();
-            var perc = (int)(sent / total * 100.0f);
-            await hubContext.Clients.Client(sendData.ConnectionId).SendProgress(perc);
-          }
 
-          if (thisOrganisation.SocialMediaEmail is not null)
-          {
-            var socialMediaHtml = "<html><body style=\"font-family: arial, helvetica, sans-serif; font-size: 11pt\">Hi<br /><br />" +
-              "Please post the latest newsletter on social media.<br /><br />Best wishes<br /><br />" +
-              $"{thisOrganisation.Name}<br /><br /></body></html>";
-            mailer.Enqueue(thisOrganisation.SocialMediaEmail, "Newsletter", thisOrganisation.FromEmail, currentUserEmail, false, socialMediaHtml);
-            await mailer.SendAsync();
-          }
+            if (thisOrganisation.SocialMediaEmail is not null)
+            {
+              var socialMediaHtml = "<html><body style=\"font-family: arial, helvetica, sans-serif; font-size: 11pt\">Hi<br /><br />" +
+                "Please post the latest newsletter on social media.<br /><br />Best wishes<br /><br />" +
+                $"{thisOrganisation.Name}<br /><br /></body></html>";
+              mailer.Enqueue(thisOrganisation.SocialMediaEmail, "Newsletter", thisOrganisation.FromEmail, currentUserEmail, false, socialMediaHtml);
+              await mailer.SendAsync();
+            }
 
-          newsletter.IsSent = true;
-          await tableService.UpdateNewsletterAsync(newsletter);
-          break;
+            newsletter.IsSent = true;
+            await tableService.UpdateNewsletterAsync(newsletter);
+          }, contentType: "text/plain; charset=utf-8");
 
         default:
           return Results.BadRequest("Invalid recipient.");
       }
+
       return Results.Ok();
     });
   }
