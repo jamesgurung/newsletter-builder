@@ -42,7 +42,7 @@ Newsletter Builder is a free, open-source web application that makes school news
     * If URL file extension = `json`, `html`, or `txt` (lowercase) then modify response header: overwrite `Cache-Control` `no-cache`, and then cache expiration: bypass cache.
     * If URL path does not contain `.` then modify response header: overwrite `Cache-Control` `no-cache`, and then cache expiration: bypass cache.
 
-4. Create an [Azure AI Foundry](https://ai.azure.com/) project and deploy an OpenAI model that you would like to use for giving feedback on articles.
+4. Create an [Azure AI Foundry](https://ai.azure.com/) project and deploy an OpenAI reasoning model (e.g. `gpt-5`) that you would like to use for giving feedback on articles.
 
 5. Create an Azure app registration.
     * Name - `Newsletter Builder`
