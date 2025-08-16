@@ -18,6 +18,10 @@ public static class AuthConfig
       .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
       .AddCookie(o =>
       {
+        o.Cookie.Path = "/";
+        o.Cookie.HttpOnly = true;
+        o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        o.Cookie.SameSite = SameSiteMode.Lax;
         o.LoginPath = "/auth/login";
         o.LogoutPath = "/auth/logout";
         o.ExpireTimeSpan = TimeSpan.FromDays(60);
@@ -33,15 +37,13 @@ public static class AuthConfig
           OnValidatePrincipal = async context =>
           {
             var issued = context.Properties.IssuedUtc;
-            if (issued.HasValue && issued.Value > DateTimeOffset.UtcNow.AddDays(-1))
-            {
-              return;
-            }
+            if (issued.HasValue && issued.Value > DateTimeOffset.UtcNow.AddDays(-1)) return;
+
             var email = context.Principal.GetEmail();
-            var identity = new ClaimsIdentity(context.Principal.Identity.AuthenticationType);
-            if (await RefreshIdentityAsync(identity, email))
+            var user = await GetUserAsync(email);
+            if (user is not null)
             {
-              context.ReplacePrincipal(new ClaimsPrincipal(identity));
+              context.Principal = CreatePrincipal(user);
               context.ShouldRenew = true;
             }
             else
@@ -52,19 +54,29 @@ public static class AuthConfig
           }
         };
       })
-      .AddOpenIdConnect("Microsoft", "Microsoft", o =>
+      .AddOpenIdConnect("Microsoft", o =>
       {
         o.Authority = $"https://login.microsoftonline.com/{builder.Configuration["Azure:TenantId"]}/v2.0/";
         o.ClientId = builder.Configuration["Azure:ClientId"];
-        o.ResponseType = OpenIdConnectResponseType.IdToken;
+        o.ClientSecret = builder.Configuration["Azure:ClientSecret"];
+        o.ResponseType = OpenIdConnectResponseType.Code;
+        o.MapInboundClaims = false;
+        o.Scope.Clear();
+        o.Scope.Add("openid");
         o.Scope.Add("profile");
         o.Events = new()
         {
           OnTicketReceived = async context =>
           {
-            var email = context.Principal.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Upn)?.Value.ToLowerInvariant();
-            if (!await RefreshIdentityAsync((ClaimsIdentity)context.Principal.Identity, email))
+            var email = context.Principal.FindFirstValue("upn")?.ToLowerInvariant();
+            var user = await GetUserAsync(email);
+            if (user is not null)
             {
+              context.Principal = CreatePrincipal(user);
+            }
+            else
+            {
+              context.Fail("Unauthorised");
               context.Response.Redirect("/auth/denied");
               context.HandleResponse();
             }
@@ -72,35 +84,25 @@ public static class AuthConfig
         };
       });
 
-    builder.Services.AddAuthorizationBuilder()
-      .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+    builder.Services.AddAuthorizationBuilder().SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
   }
 
-  private static async Task<bool> RefreshIdentityAsync(ClaimsIdentity identity, string email)
+  private static async Task<User> GetUserAsync(string email)
   {
-    User user = null;
-    if (email is not null)
-    {
-      var emailParts = email.Split('@');
-      if (Organisation.ByDomain.ContainsKey(emailParts[1]))
-      {
-        var service = new TableService(emailParts[1]);
-        user = await service.GetUserAsync(emailParts[0]);
-      }
-    }
-    if (user is null)
-    {
-      return false;
-    }
-    for (var i = identity.Claims.Count() - 1; i >= 0; i--)
-    {
-      identity.RemoveClaim(identity.Claims.ElementAt(i));
-    }
+    var emailParts = email?.Split('@');
+    if (email is null || !Organisation.ByDomain.ContainsKey(emailParts[1])) return null;
+    var service = new TableService(emailParts[1]);
+    return await service.GetUserAsync(emailParts[0]);
+  }
+
+  private static ClaimsPrincipal CreatePrincipal(User user)
+  {
+    var identity = new ClaimsIdentity(CookieAuthenticationDefaults.AuthenticationScheme);
     identity.AddClaim(new Claim(ClaimTypes.Name, user.DisplayName));
     identity.AddClaim(new Claim(ClaimTypes.Email, $"{user.RowKey}@{user.PartitionKey}"));
     identity.AddClaim(new Claim(ClaimTypes.GivenName, user.FirstName));
     identity.AddClaim(new Claim(ClaimTypes.Role, user.IsEditor ? Roles.Editor : Roles.Contributor));
-    return true;
+    return new ClaimsPrincipal(identity);
   }
 
   private static readonly string[] authenticationSchemes = ["Microsoft"];
@@ -108,11 +110,10 @@ public static class AuthConfig
   public static void MapAuthPaths(this WebApplication app)
   {
     app.MapGet("/auth/login/challenge", [AllowAnonymous] ([FromQuery] string path) =>
-      Results.Challenge(
-        new AuthenticationProperties { RedirectUri = path is null ? "/" : WebUtility.UrlDecode(path), AllowRefresh = true, IsPersistent = true },
-        authenticationSchemes
-      )
-    );
+    {
+      var authProperties = new AuthenticationProperties { RedirectUri = path is null ? "/" : WebUtility.UrlDecode(path), AllowRefresh = true, IsPersistent = true };
+      return Results.Challenge(authProperties, authenticationSchemes);
+    });
 
     app.MapGet("/auth/logout", (HttpContext context) =>
     {
@@ -126,7 +127,6 @@ public static class AuthConfig
   public static string GetRole(this ClaimsPrincipal user) => user?.Claims.FirstOrDefault(o => o.Type == ClaimTypes.Role)?.Value;
   public static string GetUsername(this ClaimsPrincipal user) => user?.Claims.FirstOrDefault(o => o.Type == ClaimTypes.Email)?.Value.Split('@')[0];
   public static string GetDomain(this ClaimsPrincipal user) => user?.Claims.FirstOrDefault(o => o.Type == ClaimTypes.Email)?.Value.Split('@')[1];
-
 }
 
 public static class Roles
