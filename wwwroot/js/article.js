@@ -2,7 +2,7 @@
 
 const article = document.getElementsByTagName('article')[0];
 const headline = document.getElementById('headline');
-const invalidCharacters = /[^A-Za-z0-9\[\]\*!"£$%&();:',.=_#@\/?\s\u00E0\u00E2\u00E6\u00E7\u00E9\u00E8\u00EA\u00EB\u00EE\u00EF\u00F4\u0153\u00F9\u00FB\u00FC\u00FF\u00C0\u00C2\u00C6\u00C7\u00C9\u00C8\u00CA\u00CB\u00CE\u00CF\u00D4\u0152\u00D9\u00DB\u00DC\u0178\u00A1\u00BF\+-]+/g;
+const invalidCharacters = /[^A-Za-z0-9\[\]\*!"£$%&();:',.=_#@\/\\?\s\u00E0\u00E2\u00E6\u00E7\u00E9\u00E8\u00EA\u00EB\u00EE\u00EF\u00F4\u0153\u00F9\u00FB\u00FC\u00FF\u00C0\u00C2\u00C6\u00C7\u00C9\u00C8\u00CA\u00CB\u00CE\u00CF\u00D4\u0152\u00D9\u00DB\u00DC\u0178\u00A1\u00BF\+-]+/g;
 const invalidWhitespace = /[\f\t\v\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]/g;
 const repeatedSpaces = /\s\s+/g;
 
