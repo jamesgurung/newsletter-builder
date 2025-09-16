@@ -334,54 +334,58 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapPost("/articles/{key}/submit", async (string key, HttpContext context) =>
+    group.MapPost("/articles/{key}/submit", async (string key, HttpContext context, ETagData etagData) =>
     {
       var domain = context.User.GetDomain();
       var service = new TableService(domain);
       var article = await service.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (!article.ContributorList.Contains(context.User.GetUsername()) && !context.User.IsInRole(Roles.Editor)) return Results.Forbid();
+      if (article.ETag.ToString() != etagData.ETag) return Results.Conflict("Article has been modified by another user.");
       article.IsSubmitted = true;
       await service.UpdateArticleAsync(article);
-      return Results.Ok();
+      return Results.Ok(article.ETag);
     });
 
-    group.MapPost("/articles/{key}/unsubmit", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context) =>
+    group.MapPost("/articles/{key}/unsubmit", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context, ETagData etagData) =>
     {
       var domain = context.User.GetDomain();
       var service = new TableService(domain);
       var article = await service.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
+      if (article.ETag.ToString() != etagData.ETag) return Results.Conflict("Article has been modified by another user.");
       article.IsSubmitted = false;
       await service.UpdateArticleAsync(article);
-      return Results.Ok();
+      return Results.Ok(article.ETag);
     });
 
-    group.MapPost("/articles/{key}/approve", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context) =>
+    group.MapPost("/articles/{key}/approve", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context, ETagData etagData) =>
     {
       var domain = context.User.GetDomain();
       var tableService = new TableService(domain);
       var article = await tableService.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (article.Content is null) return Results.BadRequest("Article content is missing.");
+      if (article.ETag.ToString() != etagData.ETag) return Results.Conflict("Article has been modified by another user.");
       article.IsSubmitted = true;
       article.IsApproved = true;
       await tableService.UpdateArticleAsync(article);
       var imageOrder = JsonSerializer.Deserialize<ArticleContentData>(article.Content).Sections.Where(o => !string.IsNullOrEmpty(o.Image)).Select(o => o.Image).ToList();
       var blobService = new BlobService(domain);
       await blobService.PublishImagesAsync(key, imageOrder);
-      return Results.Ok();
+      return Results.Ok(article.ETag);
     });
 
-    group.MapPost("/articles/{key}/unapprove", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context) =>
+    group.MapPost("/articles/{key}/unapprove", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context, ETagData etagData) =>
     {
       var domain = context.User.GetDomain();
       var service = new TableService(domain);
       var article = await service.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
+      if (article.ETag.ToString() != etagData.ETag) return Results.Conflict("Article has been modified by another user.");
       article.IsApproved = false;
       await service.UpdateArticleAsync(article);
-      return Results.Ok();
+      return Results.Ok(article.ETag);
     });
 
     group.MapPost("/aiwrite", async (WriteArticleRequest writeRequest) =>

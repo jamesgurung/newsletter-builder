@@ -28,3 +28,9 @@ public class ArticleSection
   [JsonIgnore, IgnoreDataMember]
   public string ImageRenderName { get; set; }
 }
+
+public class ETagData
+{
+  [JsonPropertyName("etag")]
+  public string ETag { get; init; }
+}

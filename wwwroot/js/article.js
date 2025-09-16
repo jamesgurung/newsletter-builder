@@ -234,7 +234,8 @@ document.getElementById('submit').addEventListener('click', async () => {
   if (isSubmitted) {
     if (!isEditor) return;
     if (!confirm('Are you sure you want to unsubmit this article?')) return;
-    await request(`/api/articles/${articleKey}/unsubmit`, 'POST');
+    const resp = await request(`/api/articles/${articleKey}/unsubmit`, 'POST', { etag });
+    etag = await resp.json();
     const button = document.getElementById('submit');
     button.innerText = 'Submit completed article to editor';
     button.classList.remove('disabled');
@@ -245,7 +246,8 @@ document.getElementById('submit').addEventListener('click', async () => {
   }
   if (!isValid('submit')) return;
   if (!confirm('Are you sure you are ready to submit this article?\nNo changes can be made after submission.')) return;
-  await request(`/api/articles/${articleKey}/submit`, 'POST');
+  const resp = await request(`/api/articles/${articleKey}/submit`, 'POST', { etag });
+  etag = await resp.json();
   lockEditing();
   isSubmitted = true;
 });
@@ -253,7 +255,8 @@ document.getElementById('submit').addEventListener('click', async () => {
 if (isEditor) {
   document.getElementById('approve').addEventListener('click', async () => {
     if (isApproved) {
-      await request(`/api/articles/${articleKey}/unapprove`, 'POST');
+      const resp = await request(`/api/articles/${articleKey}/unapprove`, 'POST', { etag });
+      etag = await resp.json();
       const button = document.getElementById('approve');
       button.innerText = 'Approve article';
       button.classList.remove('disabled');
@@ -268,7 +271,8 @@ if (isEditor) {
       return;
     }
     if (content.sections.some(s => s.includeImage && !s.consent)) { alert('Unable to approve: some students do not have photo consent.'); return; }
-    await request(`/api/articles/${articleKey}/approve`, 'POST');
+    const resp = await request(`/api/articles/${articleKey}/approve`, 'POST', { etag });
+    etag = await resp.json();
     isApproved = true;
     lockEditing();
   });
