@@ -57,8 +57,11 @@ Newsletter Builder is a free, open-source web application that makes school news
     * Publish mode - Container
     * Operating system - Linux
     * Image source - Other container registries
-    * Docker Hub access type - Public
+    * Container name - `main`
+    * Access type - Public
+    * Registry server URL - `https://index.docker.io`
     * Image and tag - `jamesgurung/newsletter-builder:latest`
+    * Port - 8080
     * Startup command: (blank)
 
 7. Configure the following environment variables for the web app:
