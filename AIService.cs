@@ -75,7 +75,7 @@ public static class AIService
     var options = new ResponseCreationOptions
     {
       Instructions = instructions,
-      ReasoningOptions = new ResponseReasoningOptions { ReasoningEffortLevel = "minimal" },
+      ReasoningOptions = new ResponseReasoningOptions { ReasoningEffortLevel = "low" },
       StoredOutputEnabled = false,
       TextOptions = new ResponseTextOptions { TextFormat = ResponseTextFormat.CreateJsonSchemaFormat("photo", describePhotoSchema, jsonSchemaIsStrict: true) },
       EndUserId = identifier

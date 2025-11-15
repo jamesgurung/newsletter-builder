@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AngleSharp" Version="1.4.0-beta.496" />
+    <PackageReference Include="AngleSharp" Version="1.4.1-beta.502" />
     <PackageReference Include="Azure.AI.OpenAI" Version="2.5.0-beta.1" />
     <PackageReference Include="Azure.Core" Version="1.50.0" />
     <PackageReference Include="Azure.Data.Tables" Version="12.11.0" />
