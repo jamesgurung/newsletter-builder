@@ -12,12 +12,12 @@ namespace NewsletterBuilder;
 
 public static class AIService
 {
-  private static OpenAIResponseClient _client;
+  private static ResponsesClient _client;
 
   public static void Configure(string endpoint, string deploymentName, string apiKey)
   {
     var azureClient = new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(apiKey));
-    _client = azureClient.GetOpenAIResponseClient(deploymentName);
+    _client = azureClient.GetResponsesClient(deploymentName);
   }
 
   private static readonly BinaryData describePhotoSchema = BinaryData.FromBytes("""
@@ -72,7 +72,7 @@ public static class AIService
       ResponseContentPart.CreateInputImagePart(photoUri, ResponseImageDetailLevel.Low)
     ]);
 
-    var options = new ResponseCreationOptions
+    var options = new CreateResponseOptions
     {
       Instructions = instructions,
       ReasoningOptions = new ResponseReasoningOptions { ReasoningEffortLevel = "low" },
@@ -80,8 +80,9 @@ public static class AIService
       TextOptions = new ResponseTextOptions { TextFormat = ResponseTextFormat.CreateJsonSchemaFormat("photo", describePhotoSchema, jsonSchemaIsStrict: true) },
       EndUserId = identifier
     };
+    options.InputItems.Add(userMessage);
 
-    var response = await _client.CreateResponseAsync([userMessage], options);
+    var response = await _client.CreateResponseAsync(options);
     var json = response.Value.OutputItems.Select(o => o as MessageResponseItem).First(o => o is not null).Content.First().Text;
     var photoDescription = JsonSerializer.Deserialize<AIPhotoResponse>(json);
     return (photoDescription.Subject == "other") ? "invalid" : photoDescription.AltText.TrimEnd('.');
@@ -123,16 +124,18 @@ public static class AIService
       * Provide feedback on the writing style (it should be a balance of professional and casual, upbeat, and highly engaging). Give a few examples of how parts could be reworded, if this is needed.
       """;
 
-    var options = new ResponseCreationOptions
+    var options = new CreateResponseOptions
     {
       Instructions = instructions,
       ReasoningOptions = new ResponseReasoningOptions { ReasoningEffortLevel = "low" },
       StoredOutputEnabled = false,
-      EndUserId = identifier
+      EndUserId = identifier,
+      StreamingEnabled = true
     };
 
     var spagUserMessage = ResponseItem.CreateUserMessageItem(spagPrompt);
-    var spagStreamingResult = _client.CreateResponseStreamingAsync([spagUserMessage], options);
+    options.InputItems.Add(spagUserMessage);
+    var spagStreamingResult = _client.CreateResponseStreamingAsync(options);
     var spagBuilder = new StringBuilder();
 
     await foreach (var update in spagStreamingResult)
@@ -143,9 +146,9 @@ public static class AIService
     }
     yield return "\n";
 
-    var spagAssistantMessage = ResponseItem.CreateAssistantMessageItem(spagBuilder.ToString());
-    var styleUserMessage = ResponseItem.CreateUserMessageItem(stylePrompt);
-    var styleStreamingResult = _client.CreateResponseStreamingAsync([spagUserMessage, spagAssistantMessage, styleUserMessage], options);
+    options.InputItems.Add(ResponseItem.CreateAssistantMessageItem(spagBuilder.ToString()));
+    options.InputItems.Add(ResponseItem.CreateUserMessageItem(stylePrompt));
+    var styleStreamingResult = _client.CreateResponseStreamingAsync(options);
 
     await foreach (var update in styleStreamingResult)
     {
@@ -170,7 +173,7 @@ public static class AIService
       Please write a headline and exactly {paragraphs} paragraphs.
       """);
 
-    var options = new ResponseCreationOptions
+    var options = new CreateResponseOptions
     {
       Instructions = instructions,
       ReasoningOptions = new ResponseReasoningOptions { ReasoningEffortLevel = "medium" },
@@ -179,7 +182,8 @@ public static class AIService
       EndUserId = identifier
     };
 
-    var response = await _client.CreateResponseAsync([userMessage], options);
+    options.InputItems.Add(userMessage);
+    var response = await _client.CreateResponseAsync(options);
     var json = response.Value.OutputItems.Select(o => o as MessageResponseItem).First(o => o is not null).Content.First().Text;
     return JsonSerializer.Deserialize<AIArticleResponse>(json);
   }

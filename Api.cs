@@ -489,7 +489,7 @@ public static class Api
               }
               await mailer.SendAsync();
               var perc = (int)(sent / total * 100.0f);
-              var bytes = Encoding.UTF8.GetBytes(perc.ToString(CultureInfo.InvariantCulture));
+              var bytes = Encoding.UTF8.GetBytes(perc.ToString(CultureInfo.InvariantCulture) + "\n");
               await outputStream.WriteAsync(bytes);
               await outputStream.FlushAsync();
             }

@@ -45,21 +45,21 @@ public class BlobService(string domain)
   public async Task DeleteArticleImagesAsync(string articleKey)
   {
     var container = client.GetBlobContainerClient("photos");
-    await foreach (var item in container.GetBlobsByHierarchyAsync(prefix: $"{domain}/{articleKey}/"))
+    var getBlobsOptions = new GetBlobsOptions { Prefix = $"{domain}/{articleKey}/" };
+    await foreach (var item in container.GetBlobsAsync(getBlobsOptions))
     {
-      if (!item.IsBlob) continue;
-      await container.DeleteBlobIfExistsAsync(item.Blob.Name, DeleteSnapshotsOption.IncludeSnapshots);
+      await container.DeleteBlobIfExistsAsync(item.Name, DeleteSnapshotsOption.IncludeSnapshots);
     }
   }
 
   public async Task MoveImagesAsync(string oldArticleKey, string newArticleKey)
   {
     var container = client.GetBlobContainerClient("photos");
-    await foreach (var item in container.GetBlobsByHierarchyAsync(prefix: $"{domain}/{oldArticleKey}/"))
+    var getBlobsOptions = new GetBlobsOptions { Prefix = $"{domain}/{oldArticleKey}/" };
+    await foreach (var item in container.GetBlobsAsync(getBlobsOptions))
     {
-      if (!item.IsBlob) continue;
-      var source = container.GetBlockBlobClient(item.Blob.Name);
-      var imageName = item.Blob.Name.Split('/').Last();
+      var source = container.GetBlockBlobClient(item.Name);
+      var imageName = item.Name.Split('/').Last();
       var dest = container.GetBlockBlobClient($"{domain}/{newArticleKey}/{imageName}");
       var resp = await dest.SyncCopyFromUriAsync(new Uri($"{source.Uri}?{GetSasQueryString()}"));
       if (resp.Value.CopyStatus == CopyStatus.Success)
@@ -113,15 +113,15 @@ public class BlobService(string domain)
     var sourceContainer = client.GetBlobContainerClient("photos");
     var destContainer = client.GetBlobContainerClient("$web");
     var articleKeyParts = articleKey.Split('_');
-    await foreach (var item in sourceContainer.GetBlobsByHierarchyAsync(prefix: $"{domain}/{articleKey}/"))
+    var getBlobsOptions = new GetBlobsOptions { Prefix = $"{domain}/{articleKey}/" };
+    await foreach (var item in sourceContainer.GetBlobsAsync(getBlobsOptions))
     {
-      if (!item.IsBlob) continue;
-      if (!item.Blob.Name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) && !item.Blob.Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+      if (!item.Name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) && !item.Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
       {
         continue;
       }
-      var source = sourceContainer.GetBlockBlobClient(item.Blob.Name);
-      var sourceName = item.Blob.Name.Split('/').Last();
+      var source = sourceContainer.GetBlockBlobClient(item.Name);
+      var sourceName = item.Name.Split('/').Last();
       var index = imageOrder.IndexOf(sourceName);
       if (index < 0) continue;
       var destName = imageOrder.Count == 1 ? articleKeyParts[1] : $"{articleKeyParts[1]}{index + 1}";

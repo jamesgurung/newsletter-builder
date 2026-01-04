@@ -28,13 +28,20 @@ async function sendEmails(e) {
     alert('QA message sent.');
   } else if (to === 'all') {
     const reader = resp.body.getReader();
+    const bar = document.getElementById("progress-bar");
     const decoder = new TextDecoder();
+    let buf = '';
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       if (!value) continue;
-      const perc = decoder.decode(value);
-      document.getElementById('progress-bar').style.width = `${perc}%`;
+      buf += decoder.decode(value, { stream: true });
+      const lastNewline = buf.lastIndexOf('\n');
+      if (lastNewline === -1) continue;
+      const line = buf.slice(0, lastNewline).split('\n').pop().trim();
+      buf = buf.slice(lastNewline + 1);
+      const n = parseFloat(line);
+      if (Number.isFinite(n)) bar.style.width = `${n}%`;
     }
     document.getElementById('send-box').innerHTML = '<span class="green">Done</span>';
     document.getElementById('progress-bar').style.width = '100%';
