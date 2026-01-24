@@ -314,7 +314,7 @@ let cropper;
 let currentImageInputElement;
 
 function onSelectImage(e) {
-  if (e.target.files.count === 0 || !e.target.files[0]) return;
+  if (!e.target.files || e.target.files.length === 0 || !e.target.files[0]) return;
   const type = e.target.files[0].type;
   if (type !== 'image/jpeg' && type !== 'image/png') {
     alert('Only JPG and PNG images are supported.');

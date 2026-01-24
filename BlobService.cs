@@ -128,6 +128,11 @@ public class BlobService(string domain)
       var extension = sourceName.Split('.').Last();
       var dest = destContainer.GetBlockBlobClient($"{articleKeyParts[0]}/{destName}.{extension}");
       await dest.SyncCopyFromUriAsync(new Uri($"{source.Uri}?{GetSasQueryString()}"));
+      await dest.SetHttpHeadersAsync(new BlobHttpHeaders
+      {
+        ContentType = extension.Equals("jpg", StringComparison.OrdinalIgnoreCase) ? "image/jpeg" : "image/png",
+        CacheControl = "public, max-age=31536000"
+      });
     }
   }
 
