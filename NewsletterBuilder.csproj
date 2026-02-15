@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <AnalysisMode>All</AnalysisMode>
     <UserSecretsId>dad2bf33-34c9-4bc4-bbdb-f925aa5fc70d</UserSecretsId>
@@ -13,13 +13,13 @@
   <ItemGroup>
     <PackageReference Include="AngleSharp" Version="1.4.1-beta.506" />
     <PackageReference Include="Azure.AI.OpenAI" Version="2.8.0-beta.1" />
-    <PackageReference Include="Azure.Core" Version="1.50.0" />
+    <PackageReference Include="Azure.Core" Version="1.51.1" />
     <PackageReference Include="Azure.Data.Tables" Version="12.11.0" />
     <PackageReference Include="Azure.Extensions.AspNetCore.DataProtection.Blobs" Version="1.5.1" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.28.0-beta.1" />
-    <PackageReference Include="Markdig" Version="0.44.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.2" />
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0-preview.4" />
+    <PackageReference Include="Markdig" Version="0.45.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="11.0.0-preview.1.26104.118" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
     <PackageReference Include="Postmark" Version="5.3.0" />
     <PackageReference Include="PreMailer.Net" Version="2.7.2" />
   </ItemGroup>

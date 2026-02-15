@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Azure;
 using Azure.AI.OpenAI;
-using OpenAI.Chat;
 using OpenAI.Responses;
 
 namespace NewsletterBuilder;

@@ -36,15 +36,9 @@ Newsletter Builder is a free, open-source web application that makes school news
     * Customise the contents of the `StaticWebsite` folder in this repository, for example replacing placeholders with their appropriate values. Then upload to the `$web` blob container. Also upload `logo.jpg` (250x250px), `logo-hd.jpg` (1200x1200px), `favicon.ico`, and `icon-192x192.png`.
     * Enable CORS for blob `GET` requests from the domain where the newsletter builder will be hosted (e.g. `https://build.newsletter.example.com`).
 
-3. Create an Azure CDN endpoint with the static website as its origin, and a custom domain set for where you would like your newsletter to be available online (e.g. `newsletter.example.com`). Enable compression. Add the following rules:
-    * If request protocol = `HTTP` then URL redirect Found (302), HTTPS 
-    * If URL file extension = `jpg`, `png`, `pdf`, `css`, or `js` (lowercase) then modify response header: overwrite `Cache-Control` `max-age=31536000`, and then cache expiration: override `365` days.
-    * If URL file extension = `json`, `html`, or `txt` (lowercase) then modify response header: overwrite `Cache-Control` `no-cache`, and then cache expiration: bypass cache.
-    * If URL path does not contain `.` then modify response header: overwrite `Cache-Control` `no-cache`, and then cache expiration: bypass cache.
+3. Create an [Azure AI Foundry](https://ai.azure.com/) project and deploy an OpenAI reasoning model (e.g. `gpt-5.1`) that you would like to use for giving feedback on articles.
 
-4. Create an [Azure AI Foundry](https://ai.azure.com/) project and deploy an OpenAI reasoning model (e.g. `gpt-5.1`) that you would like to use for giving feedback on articles.
-
-5. Create an Azure app registration.
+4. Create an Azure app registration.
     * Name - `Newsletter Builder`
     * Redirect URI - `https://<your-newsletter-builder-domain>/signin-oidc`
     * Implicit grant - ID tokens
@@ -53,7 +47,7 @@ Newsletter Builder is a free, open-source web application that makes school news
     * Token configuration - add optional claim of type ID: `upn`
     * Certificates & secrets - create a new client secret
 
-6. Create an Azure App Service web app.
+5. Create an Azure App Service web app.
     * Publish mode - Container
     * Operating system - Linux
     * Image source - Other container registries
@@ -64,9 +58,9 @@ Newsletter Builder is a free, open-source web application that makes school news
     * Port - 8080
     * Startup command: (blank)
 
-7. Configure the following environment variables for the web app:
+6. Configure the following environment variables for the web app:
 
-    * `AutomationApiKey` - a secret GUID which is used to authenticate requests to the automation API
+    * `AutomationApiKey` - a secret GUID which is used to authenticate requests to the automation API, if you wish to use this feature
     * `Azure__AIFoundryApiKey` - the API key for your Azure AI Foundry project
     * `Azure__AIFoundryDeployment` - the name of the deployed OpenAI model that you would like to use
     * `Azure__AIFoundryEndpoint` - the endpoint URL for your Azure AI Foundry deployment, e.g. `https://<project>.cognitiveservices.azure.com/`

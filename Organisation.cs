@@ -32,13 +32,12 @@ public class Reminder
   public string Subject { get; set; }
   public string Message { get; set; }
 
-  private string _time;
   public string Time
   {
-    get => _time;
+    get;
     set
     {
-      _time = value;
+      field = value;
       if (!TimeOnly.TryParse(value, out var timeOnly))
         throw new ArgumentException("Invalid time format. Use HH:mm (24-hour format).", nameof(value));
       TimeOnly = timeOnly;
