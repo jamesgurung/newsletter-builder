@@ -1,22 +1,24 @@
-﻿using System.Text;
+﻿using OpenAI;
+using OpenAI.Responses;
+using System.ClientModel;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Azure;
-using Azure.AI.OpenAI;
-using OpenAI.Responses;
 
 namespace NewsletterBuilder;
-
-#pragma warning disable OPENAI001
 
 public static class AIService
 {
   private static ResponsesClient _client;
+  private static string _deployment;
 
-  public static void Configure(string endpoint, string deploymentName, string apiKey)
+  public static void Configure(string endpoint, string deployment, string apiKey)
   {
-    var azureClient = new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(apiKey));
-    _client = azureClient.GetResponsesClient(deploymentName);
+    ArgumentNullException.ThrowIfNull(endpoint);
+    var clientOptions = new OpenAIClientOptions { NetworkTimeout = TimeSpan.FromMinutes(10), Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/") };
+    var aiClient = new OpenAIClient(new ApiKeyCredential(apiKey), clientOptions);
+    _client = aiClient.GetResponsesClient();
+    _deployment = deployment;
   }
 
   private static readonly BinaryData describePhotoSchema = BinaryData.FromBytes("""
@@ -73,6 +75,7 @@ public static class AIService
 
     var options = new CreateResponseOptions
     {
+      Model = _deployment,
       Instructions = instructions,
       ReasoningOptions = new ResponseReasoningOptions { ReasoningEffortLevel = "low" },
       StoredOutputEnabled = false,
@@ -125,6 +128,7 @@ public static class AIService
 
     var options = new CreateResponseOptions
     {
+      Model = _deployment,
       Instructions = instructions,
       ReasoningOptions = new ResponseReasoningOptions { ReasoningEffortLevel = "low" },
       StoredOutputEnabled = false,
@@ -174,6 +178,7 @@ public static class AIService
 
     var options = new CreateResponseOptions
     {
+      Model = _deployment,
       Instructions = instructions,
       ReasoningOptions = new ResponseReasoningOptions { ReasoningEffortLevel = "medium" },
       StoredOutputEnabled = false,
