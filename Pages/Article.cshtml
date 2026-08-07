@@ -1,10 +1,12 @@
-﻿@page "/{date:regex(^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$)}/{articleName}"
+@page "/{date:regex(^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$)}/{articleName}"
 @model ArticlePageModel
 @{
+  ViewData["BodyClass"] = "article-page";
   var thisOrganisation = Organisation.ByDomain[User.GetDomain()];
+  var articleDate = DateOnly.ParseExact(Model.Article.Date, "yyyy-MM-dd");
 }
 
-<p style="text-align: center; color: grey">Newsletter: <b>@Model.Article.Date</b> &nbsp; Article: <b>@Model.Article.Title</b></p>
+<h1 class="article-heading">@articleDate.ToString("d MMMM yyyy") &mdash; @Model.Article.Title</h1>
 
 <div id="aiwriting" style="display: none">
   <div style="font-weight: bold; font-size: 16px; color: #1379ce; margin: 6px 0 12px">Write using AI</div>
@@ -17,9 +19,11 @@
 
 <div id="main" style="display: none">
 
-  <h2 id="headline" contenteditable="true" data-placeholder="@(Model.Article.ShortName == "intro" ? "Newsletter" : "Article") Headline" data-maxlength="80"></h2>
+  <div class="newsletter-content">
+    <h2 id="headline" contenteditable="true" data-placeholder="@(Model.Article.ShortName == "intro" ? "Newsletter" : "Article") Headline" data-maxlength="80"></h2>
 
-  <article></article>
+    <article></article>
+  </div>
 
   <p id="addsectioncontainer" style="text-align: center">
     @if (Model.IsEditor || Model.IsOwner)
@@ -39,6 +43,7 @@
     <div id="aifeedbackbubble"><div class="typing"><span></span><span></span><span></span></div></div>
     <div id="aifeedbackfinish" style="display: none">Once you have finished reviewing this feedback and redrafting your article, click the button below to submit.</div>
   </div>
+  <hr class="article-divider" />
   <p style="text-align: center; margin: 24px 0">
     <a id="submit">Submit completed article to editor</a>
     @if (Model.IsEditor)
@@ -92,11 +97,10 @@
   </section>
 </template>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" integrity="sha512-UtLOu9C7NuThQhuXXrGwx9Jb/z9zPQJctuAgNUBK3Z6kkSYT9wJ+2+dh6klS+TDBCV9kNPBbAxbVD+vCcfGPaA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-
 @section Scripts {
   <script>
     const isEditor = @Model.IsEditor.ToString().ToLowerInvariant();
+    const isAdmin = @Model.IsAdmin.ToString().ToLowerInvariant();
     const isOwner = @Model.IsOwner.ToString().ToLowerInvariant();
     const articleKey = '@Model.Article.RowKey';
     const isIntro = @((Model.Article.Title == "Intro").ToString().ToLowerInvariant());
@@ -109,7 +113,7 @@
     let coverPhoto = @Html.Raw($"\"{Model.CoverPhoto}\"" ?? "null");
     let etag = @Json.Serialize(Model.Article.ETag);
   </script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" integrity="sha512-JyCZjCOZoyeQZSd5+YEAcFgz2fowJ1F1hyJOXgtKu4llIa0KneLcidn5bwfutiehUTiOuK87A986BZJMko0eWQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/2.1.1/cropper.min.js" integrity="sha512-uEAbGvrDLgjKT/DqgIk9xOsZrcT1nn2c1gcA2SZ6uOKRMX26R1o0nkV9JjFBiivd8LtYMViEPKeJvs0p0hGeeQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="/js/shared.js" asp-append-version="true"></script>
   <script src="/js/article.js" asp-append-version="true"></script>
 }

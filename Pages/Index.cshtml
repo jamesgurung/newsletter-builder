@@ -1,21 +1,39 @@
 ﻿@page
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
+  ViewData["BodyClass"] = "index-page";
+  var effectiveDateSetting = Configuration["EffectiveDate"];
+  var effectiveDate = string.IsNullOrWhiteSpace(effectiveDateSetting)
+    ? DateOnly.FromDateTime(DateTime.Today)
+    : DateOnly.ParseExact(effectiveDateSetting, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
   var service = new TableService(User.GetDomain());
-  var events = await service.ListEventsAsync();
-  var newsletters = await service.ListNewslettersAsync();
-  var articles = await service.ListArticlesAsync();
+  var events = await service.ListEventsAsync(effectiveDate);
+  var newsletters = await service.ListNewslettersAsync(effectiveDate);
+  var articles = await service.ListArticlesAsync(effectiveDate: effectiveDate);
   var username = User.GetUsername();
   var isEditor = User.IsInRole(Roles.Editor);
   var users = isEditor ? await service.ListUsersAsync() : null;
-  var nextDate = newsletters.Any() ? DateOnly.ParseExact(newsletters.Last().RowKey, "yyyy-MM-dd").AddDays(7) : DateOnly.FromDateTime(DateTime.Today);
+  var nextDate = newsletters.Any() ? DateOnly.ParseExact(newsletters.Last().RowKey, "yyyy-MM-dd").AddDays(7) : effectiveDate;
   var thisOrganisation = Organisation.ByDomain[User.GetDomain()];
 }
-<h2>Newsletters</h2>
+<nav class="index-tabs" aria-label="Dashboard sections" role="tablist">
+  <button id="newsletters-tab" type="button" role="tab" aria-controls="newsletters-panel" aria-selected="true">Newsletters</button>
+  <button id="events-tab" type="button" role="tab" aria-controls="events-panel" aria-selected="false" tabindex="-1">Events</button>
+  @if (isEditor) {
+    <button id="users-tab" type="button" role="tab" aria-controls="users-panel" aria-selected="false" tabindex="-1">Users</button>
+    <button id="recipients-tab" type="button" role="tab" aria-controls="recipients-panel" aria-selected="false" tabindex="-1">Recipients</button>
+  }
+</nav>
+
+<section id="newsletters-panel" class="index-section" role="tabpanel" aria-labelledby="newsletters-tab" tabindex="0">
+<div class="index-section-heading">
+  <h1 id="newsletters-heading">Newsletters</h1>
+</div>
 <ul id="newsletters">
   @foreach (var newsletter in newsletters)
   {
     var newsletterArticles = RenderPageModel.OrderArticles(articles.Where(o => o.RowKey.StartsWith(newsletter.RowKey)), newsletter.ArticleOrder);
-    var deadlineReached = DateOnly.ParseExact(newsletter.Deadline, "yyyy-MM-dd") <= DateOnly.FromDateTime(DateTime.Today);
+    var deadlineReached = DateOnly.ParseExact(newsletter.Deadline, "yyyy-MM-dd") <= effectiveDate;
     <li data-key="@newsletter.RowKey" data-enableadd="@((isEditor || !deadlineReached).ToString().ToLowerInvariant())">
       <b>@newsletter.RowKey</b> (deadline @newsletter.Deadline)
       @if (isEditor) {
@@ -56,14 +74,21 @@
   @if (isEditor)
   {
     <li id="addnewslettersection">
-      <input id="newsletterdate" type="date" value="@nextDate.ToString("yyyy-MM-dd")" style="margin-right: 6px; width: 108px; font-weight: bold" />
-      due: <input id="newsletterdeadline" type="date" value="@nextDate.AddDays(-thisOrganisation.DefaultDeadlineDaysBeforePublish).ToString("yyyy-MM-dd")" style="margin-right: 6px; width: 108px" />
-      <a id="addnewsletter">Add</a>
+      <h3>Add a newsletter</h3>
+      <label class="index-field-label" for="newsletterdate">Publish date</label>
+      <input id="newsletterdate" type="date" value="@nextDate.ToString("yyyy-MM-dd")" />
+      <label class="index-field-label" for="newsletterdeadline">Deadline</label>
+      <input id="newsletterdeadline" type="date" value="@nextDate.AddDays(-thisOrganisation.DefaultDeadlineDaysBeforePublish).ToString("yyyy-MM-dd")" />
+      <a id="addnewsletter">Add newsletter</a>
     </li>
   }
 </ul>
-<hr />
-<h2>Events</h2>
+</section>
+
+<section id="events-panel" class="index-section" role="tabpanel" aria-labelledby="events-tab" tabindex="0">
+<div class="index-section-heading">
+  <h1 id="events-heading">Events</h1>
+</div>
 <ul id="events">
   @foreach (var ev in events)
   {
@@ -83,41 +108,51 @@
     </li>
   }
   <li id="addeventsection">
-    <input id="eventstart" type="date" style="margin-bottom: 3px; width: 108px; font-weight: bold" autocomplete="off" data-lpignore="true" data-form-type="other" /> -
-    <input id="eventend" type="date" style="margin-bottom: 3px; width: 108px; font-weight: bold" autocomplete="off" data-lpignore="true" data-form-type="other" /> -
-    <input id="eventtitle" placeholder="Event Title" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 247px; margin-right: 6px" />
-    <a id="addevent">Add</a>
+    <label class="index-field-label" for="eventstart">Start</label>
+    <input id="eventstart" type="date" autocomplete="off" data-lpignore="true" data-form-type="other" />
+    <label class="index-field-label" for="eventend">End</label>
+    <input id="eventend" type="date" autocomplete="off" data-lpignore="true" data-form-type="other" />
+    <input id="eventtitle" placeholder="Event Title" aria-label="Event title" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" />
+    <a id="addevent">Add event</a>
   </li>
 </ul>
+</section>
 
 @if (isEditor) {
-  <hr />
-  <h2>Users</h2>
+  <section id="users-panel" class="index-section" role="tabpanel" aria-labelledby="users-tab" tabindex="0">
+  <div class="index-section-heading">
+    <h1 id="users-heading">Users</h1>
+  </div>
   <ul id="users">
     @foreach (var user in users)
     {
       <li data-key="@user.RowKey"><b>@user.RowKey</b> - @user.DisplayName (@user.FirstName) @if (user.RowKey != username) {<a class="delete">&#10006;</a>}</li>
     }
     <li id="addusersection">
-      <input id="username" pattern="[a-z0-9'.\-]+" placeholder="Username" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-bottom: 3px; margin-right: 6px; font-weight: bold" />
-      <input id="userdisplay" placeholder="Display Name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-bottom: 3px; margin-right: 6px" />
-      <input id="userfirst" placeholder="First Name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-right: 6px" />
-      <a id="adduser">Add</a>
+      <input id="username" pattern="[a-z0-9'.\-]+" placeholder="Username" aria-label="Username" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" />
+      <input id="userdisplay" placeholder="Display Name" aria-label="Display name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" />
+      <input id="userfirst" placeholder="First Name" aria-label="First name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" />
+      <a id="adduser">Add user</a>
     </li>
   </ul>
-  <hr />
-  <h2>Recipients</h2>
-  <p style="text-align: center"><a href="/recipients">Manage recipients</a></p>
+  </section>
+
+  <section id="recipients-panel" class="index-section" role="tabpanel" aria-labelledby="recipients-tab" tabindex="0">
+  <div class="index-section-heading">
+    <h1 id="recipients-heading">Recipients</h1>
+  </div>
+  <p class="recipients-action"><a href="/recipients">Manage recipients</a></p>
+  </section>
 }
 
 <template id="addarticletemplate">
   <li class="addarticlesection">
-    <input pattern="[a-z0-9A-Z' \-:&]+" class="articlename" placeholder="Article Name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-bottom: 3px; margin-right: 6px" />
+    <input pattern="[a-z0-9A-Z' \-:&]+" class="articlename" placeholder="Article Name" aria-label="Article name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" />
     @if (isEditor)
     {
-      <input pattern="[a-z0-9'.,\-]+" class="articlecontributors" placeholder="Contributors" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" style="width: 150px; margin-right: 6px" />
+      <input pattern="[a-z0-9'.,\-]+" class="articlecontributors" placeholder="Contributors" aria-label="Contributors" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" />
     }
-    <a class="addarticle">Add</a>
+    <a class="addarticle">Add article</a>
   </li>
 </template>
 

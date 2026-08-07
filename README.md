@@ -30,6 +30,7 @@ Newsletter Builder is a free, open-source web application that makes school news
         * PartitionKey - the email domain of the user (everything after the `@` symbol)
         * RowKey - the email name of the user (everything before the `@` symbol)
         * IsEditor - `true`
+        * IsAdmin - `true`
         * FirstName - the user's first name
         * DisplayName - the user's title and surname
     * Enable static website hosting, and set the index document to `index.html` and the error document to `404.html`. This will create a `$web` blob container, which will be the root of the public-facing newsletter website.
@@ -70,6 +71,8 @@ Newsletter Builder is a free, open-source web application that makes school news
     * `Azure__StorageAccountKey` - the key for your Azure Storage account
     * `Azure__StorageAccountName` - the name of your Azure Storage account
     * `Azure__TenantId` - your Azure tenant ID
+    * `BrandAccentColour` - the CSS colour used for the navbar bottom border
+    * `BrandColour` - the CSS colour used for the navbar background
     * `NewsletterEditorUrl` - the URL of the newsletter editor
     * `Organisations__0__Address` - the address of your organisation
     * `Organisations__0__AzureStorageStaticWebsiteAccountName` - the account name of the storage account where the newsletter static website is hosted

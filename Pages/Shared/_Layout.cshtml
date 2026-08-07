@@ -1,7 +1,9 @@
-﻿@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
   var antiforgeryToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
-  var thisOrganisation = User.Identity.IsAuthenticated ? Organisation.ByDomain[User.GetDomain()] : null;
+  var navbarOrganisation = Organisation.ByDomain.Values.First();
+  var bodyClass = ViewData["BodyClass"] as string;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -12,19 +14,29 @@
   <title>Newsletter Builder</title>
   <link rel="stylesheet" href="/css/site.css" asp-append-version="true" />
 </head>
-<body>
-
-  <h1><a href="/">@(thisOrganisation is null ? "Newsletter Builder" : $"{thisOrganisation.Name} Newsletter")</a></h1>
-  @if (User.Identity.IsAuthenticated)
-  {
-    <p style="text-align: center">
-      @User.Identity.Name (@User.GetRole()) &ndash; <a href="/auth/logout">Logout</a>
-    </p>
-    <hr />
-  }
-  <div>
-    @RenderBody()
-  </div>
+<body class="@bodyClass">
+  <header class="app-header" style="--brand-colour: @Configuration["BrandColour"]; --brand-accent-colour: @Configuration["BrandAccentColour"]">
+    <div class="header-bar">
+      <h1>
+        <a class="navbar-brand" href="/">
+          <img class="navbar-logo" src="@navbarOrganisation.NewsletterUrl/logo-navbar.png" alt="@navbarOrganisation.Name logo" />
+          <span>Newsletter Builder</span>
+        </a>
+      </h1>
+      @if (User.Identity.IsAuthenticated)
+      {
+        <div class="auth-actions">
+          <span class="signed-in-name">@User.Identity.Name (@User.GetRoles())</span>
+          <a class="auth-button" href="/auth/logout">Sign Out</a>
+        </div>
+      }
+    </div>
+  </header>
+  <main class="app-body">
+    <div class="page-content">
+      @RenderBody()
+    </div>
+  </main>
   @if (User.Identity.IsAuthenticated) {
   <script>
     const domain = '@User.GetDomain()';

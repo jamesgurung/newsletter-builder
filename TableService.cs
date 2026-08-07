@@ -1,4 +1,4 @@
-﻿using Azure;
+using Azure;
 using Azure.Data.Tables;
 using NewsletterBuilder.Entities;
 using System.Globalization;
@@ -63,10 +63,10 @@ public class TableService(string domain)
     return result.HasValue ? result.Value : null;
   }
 
-  public async Task<List<Newsletter>> ListNewslettersAsync()
+  public async Task<List<Newsletter>> ListNewslettersAsync(DateOnly? effectiveDate = null)
   {
     var table = client.GetTableClient("newsletters");
-    var today = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    var today = (effectiveDate ?? DateOnly.FromDateTime(DateTime.Today)).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     return await table.QueryAsync<Newsletter>(o => o.PartitionKey == domain && o.RowKey.CompareTo(today) >= 0).ToListAsync();
   }
 
@@ -95,13 +95,13 @@ public class TableService(string domain)
     return result.HasValue ? result.Value : null;
   }
 
-  public async Task<List<Article>> ListArticlesAsync(string date = null)
+  public async Task<List<Article>> ListArticlesAsync(string date = null, DateOnly? effectiveDate = null)
   {
     var table = client.GetTableClient("articles");
 
     if (date is null)
     {
-      var today = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+      var today = (effectiveDate ?? DateOnly.FromDateTime(DateTime.Today)).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
       return await table.QueryAsync<Article>(o => o.PartitionKey == domain && o.RowKey.CompareTo(today) >= 0).ToListAsync();
     }
     var nextDay = DateOnly.ParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture).AddDays(1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
@@ -135,11 +135,12 @@ public class TableService(string domain)
     return result.HasValue ? result.Value : null;
   }
 
-  public async Task<List<CalendarEvent>> ListEventsAsync()
+  public async Task<List<CalendarEvent>> ListEventsAsync(DateOnly? effectiveDate = null)
   {
     var table = client.GetTableClient("events");
-    var twoWeeksAgo = DateTime.Today.AddDays(-14).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-    var today = DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    var todayDate = effectiveDate ?? DateOnly.FromDateTime(DateTime.Today);
+    var twoWeeksAgo = todayDate.AddDays(-14).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    var today = todayDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     return (await table.QueryAsync<CalendarEvent>(o => o.PartitionKey == domain && o.RowKey.CompareTo(twoWeeksAgo) >= 0).ToListAsync())
       .Where(o => string.CompareOrdinal(o.EndDate, today) > 0).ToList();
   }
@@ -245,7 +246,8 @@ public class TableService(string domain)
         RowKey = parts[0],
         FirstName = parts[1],
         DisplayName = parts[2],
-        IsEditor = false
+        IsEditor = false,
+        IsAdmin = false
       }));
     }
 

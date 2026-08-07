@@ -1,4 +1,4 @@
-﻿// Globals
+// Globals
 
 const article = document.getElementsByTagName('article')[0];
 const headline = document.getElementById('headline');
@@ -84,7 +84,7 @@ function setImage(el, image, alt, consent) {
   consentElement.checked = image ? consent : false;
   clearElement.style.display = image && !isGenerating ? null : 'none';
   blurImageElement.style.display = image && !isGenerating && !isInvalid ? null : 'none';
-  approveElement.style.display = image && isInvalid && isEditor ? null : 'none';
+  approveElement.style.display = image && isInvalid && isAdmin ? null : 'none';
   setCoverPhotoElement.style.display = 'none';
 }
 
@@ -311,7 +311,112 @@ function lockEditing() {
 // Image cropping and uploading
 
 let cropper;
+let cropperCanvas;
+let cropperImage;
+let cropperSelection;
 let currentImageInputElement;
+let resettingCropperSelection = false;
+
+const cropperTemplate = `
+  <cropper-canvas background>
+    <cropper-image initial-center-size="contain" rotatable scalable translatable></cropper-image>
+    <cropper-shade hidden></cropper-shade>
+    <cropper-handle action="move" plain></cropper-handle>
+    <cropper-selection initial-coverage="0.9" aspect-ratio="1.7777777777777777" movable resizable precise>
+      <cropper-grid role="grid" bordered covered></cropper-grid>
+      <cropper-crosshair centered></cropper-crosshair>
+      <cropper-handle action="move" theme-color="rgba(255, 255, 255, 0.35)"></cropper-handle>
+      <cropper-handle action="n-resize"></cropper-handle>
+      <cropper-handle action="e-resize"></cropper-handle>
+      <cropper-handle action="s-resize"></cropper-handle>
+      <cropper-handle action="w-resize"></cropper-handle>
+      <cropper-handle action="ne-resize"></cropper-handle>
+      <cropper-handle action="nw-resize"></cropper-handle>
+      <cropper-handle action="se-resize"></cropper-handle>
+      <cropper-handle action="sw-resize"></cropper-handle>
+    </cropper-selection>
+  </cropper-canvas>`;
+
+function isSelectionWithin(selection, bounds) {
+  return selection.x >= bounds.x - 0.5
+    && selection.y >= bounds.y - 0.5
+    && selection.x + selection.width <= bounds.x + bounds.width + 0.5
+    && selection.y + selection.height <= bounds.y + bounds.height + 0.5;
+}
+
+function getImageBounds(imageRect, canvasRect) {
+  return {
+    x: imageRect.left - canvasRect.left,
+    y: imageRect.top - canvasRect.top,
+    width: imageRect.width,
+    height: imageRect.height
+  };
+}
+
+function resetCropperSelection() {
+  const canvasRect = cropperCanvas.getBoundingClientRect();
+  const imageBounds = getImageBounds(cropperImage.getBoundingClientRect(), canvasRect);
+  const x = Math.max(0, imageBounds.x);
+  const y = Math.max(0, imageBounds.y);
+  const availableWidth = Math.min(canvasRect.width, imageBounds.x + imageBounds.width) - x;
+  const availableHeight = Math.min(canvasRect.height, imageBounds.y + imageBounds.height) - y;
+  const maxWidth = Math.min(availableWidth, availableHeight * 16 / 9);
+  const scale = Math.hypot(...cropperImage.$getTransform().slice(0, 2));
+  const width = Math.min(maxWidth, Math.max(maxWidth * 0.9, 1120 * scale));
+  const height = width * 9 / 16;
+
+  resettingCropperSelection = true;
+  cropperSelection.$change(
+    x + (availableWidth - width) / 2,
+    y + (availableHeight - height) / 2,
+    width,
+    height
+  );
+  resettingCropperSelection = false;
+}
+
+function onCropperSelectionChange(event) {
+  if (resettingCropperSelection || event.detail.width === 0 || event.detail.height === 0) return;
+  const canvasRect = cropperCanvas.getBoundingClientRect();
+  const canvasBounds = { x: 0, y: 0, width: canvasRect.width, height: canvasRect.height };
+  const imageBounds = getImageBounds(cropperImage.getBoundingClientRect(), canvasRect);
+  const scale = Math.hypot(...cropperImage.$getTransform().slice(0, 2));
+
+  if (!isSelectionWithin(event.detail, canvasBounds)
+    || !isSelectionWithin(event.detail, imageBounds)
+    || event.detail.width / scale < 1119.5
+    || event.detail.height / scale < 629.5)
+    event.preventDefault();
+}
+
+function onCropperImageTransform(event) {
+  const canvasRect = cropperCanvas.getBoundingClientRect();
+  const imageClone = cropperImage.cloneNode();
+  imageClone.style.transform = `matrix(${event.detail.matrix.join(', ')})`;
+  imageClone.style.opacity = 0;
+  cropperCanvas.appendChild(imageClone);
+  const imageRect = imageClone.getBoundingClientRect();
+  imageClone.remove();
+
+  const isSmallerThanCanvas = (imageRect.top > canvasRect.top + 0.5 && imageRect.right < canvasRect.right - 0.5)
+    || (imageRect.right < canvasRect.right - 0.5 && imageRect.bottom < canvasRect.bottom - 0.5)
+    || (imageRect.bottom < canvasRect.bottom - 0.5 && imageRect.left > canvasRect.left + 0.5)
+    || (imageRect.left > canvasRect.left + 0.5 && imageRect.top > canvasRect.top + 0.5);
+
+  if (isSmallerThanCanvas) {
+    event.preventDefault();
+    return;
+  }
+
+  if (!cropperSelection.hidden) {
+    const imageBounds = getImageBounds(imageRect, canvasRect);
+    const scale = Math.hypot(...event.detail.matrix.slice(0, 2));
+    if (!isSelectionWithin(cropperSelection, imageBounds)
+      || cropperSelection.width / scale < 1119.5
+      || cropperSelection.height / scale < 629.5)
+      event.preventDefault();
+  }
+}
 
 function onSelectImage(e) {
   if (!e.target.files || e.target.files.length === 0 || !e.target.files[0]) return;
@@ -332,29 +437,17 @@ function onSelectImage(e) {
       return;
     }
     document.getElementById('image-editor').style.display = 'block';
-    image.addEventListener('ready', () => {
-      document.getElementById('image-editor').style.opacity = 1;
+    cropper = new Cropper.default(image, {
+      template: cropperTemplate
     });
-    cropper = new Cropper(image, {
-      viewMode: 2,
-      aspectRatio: 16 / 9,
-      autoCropArea: 0.9,
-      scalable: false,
-      dragMode: 'move',
-      toggleDragModeOnDblclick: false,
-      crop: function (event) {
-        const width = Math.round(event.detail.width);
-        const height = Math.round(event.detail.height);
-
-        if (width < 1120 || height < 630) {
-          cropper.setData({
-            width: Math.max(1120, width),
-            height: Math.max(630, height),
-          });
-        }
-      }
-    });
-
+    cropperCanvas = cropper.getCropperCanvas();
+    cropperImage = cropper.getCropperImage();
+    cropperSelection = cropper.getCropperSelection();
+    cropperImage.addEventListener('transform', onCropperImageTransform);
+    cropperSelection.addEventListener('change', onCropperSelectionChange);
+    await cropperImage.$ready();
+    resetCropperSelection();
+    document.getElementById('image-editor').style.opacity = 1;
   }
   image.src = URL.createObjectURL(e.target.files[0]);
 }
@@ -369,7 +462,7 @@ document.getElementById('image-cancel').addEventListener('click', () => {
 });
 
 document.getElementById('image-upload').addEventListener('click', async () => {
-  const canvas = cropper.getCroppedCanvas({ width: 1120, height: 630 });
+  const canvas = await cropperSelection.$toCanvas({ width: 1120, height: 630 });
   const type = currentImageInputElement.files[0].type;
   const blob = await new Promise(resolve => canvas.toBlob(resolve, type, 0.9));
   const editor = document.getElementById('image-editor');
@@ -379,8 +472,16 @@ document.getElementById('image-upload').addEventListener('click', async () => {
   cropper.destroy();
 });
 
-document.getElementById('rotate-left').addEventListener('click', () => { cropper.clear(); cropper.rotate(-90); cropper.crop(); });
-document.getElementById('rotate-right').addEventListener('click', () => { cropper.clear(); cropper.rotate(90); cropper.crop(); });
+document.getElementById('rotate-left').addEventListener('click', () => {
+  cropperSelection.$clear();
+  cropperImage.$rotate('-90deg').$center('contain');
+  resetCropperSelection();
+});
+document.getElementById('rotate-right').addEventListener('click', () => {
+  cropperSelection.$clear();
+  cropperImage.$rotate('90deg').$center('contain');
+  resetCropperSelection();
+});
 
 async function uploadImage(blob, type) {
   const imageSection = currentImageInputElement.closest('.section-image');

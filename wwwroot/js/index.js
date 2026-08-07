@@ -1,5 +1,40 @@
 // Common
 
+const indexTabs = [...document.querySelectorAll('.index-tabs [role="tab"]')];
+const indexPanels = [...document.querySelectorAll('.index-section[role="tabpanel"]')];
+
+function activateIndexTab(tab, updateHash = true) {
+  for (const item of indexTabs) {
+    const isActive = item === tab;
+    item.setAttribute('aria-selected', isActive);
+    item.tabIndex = isActive ? 0 : -1;
+  }
+  for (const panel of indexPanels) panel.hidden = panel.id !== tab.getAttribute('aria-controls');
+  if (updateHash) history.replaceState(null, '', `#${tab.getAttribute('aria-controls').replace('-panel', '')}`);
+}
+
+for (const [index, tab] of indexTabs.entries()) {
+  tab.addEventListener('click', () => {
+    activateIndexTab(tab);
+    window.scrollTo(0, 0);
+  });
+  tab.addEventListener('keydown', e => {
+    let nextIndex;
+    if (e.key === 'ArrowLeft') nextIndex = (index - 1 + indexTabs.length) % indexTabs.length;
+    else if (e.key === 'ArrowRight') nextIndex = (index + 1) % indexTabs.length;
+    else if (e.key === 'Home') nextIndex = 0;
+    else if (e.key === 'End') nextIndex = indexTabs.length - 1;
+    else return;
+    e.preventDefault();
+    indexTabs[nextIndex].focus();
+    indexTabs[nextIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    activateIndexTab(indexTabs[nextIndex]);
+  });
+}
+
+const requestedTab = document.getElementById(`${location.hash.slice(1)}-tab`);
+activateIndexTab(requestedTab?.getAttribute('role') === 'tab' ? requestedTab : indexTabs[0], false);
+
 const prevVals = [];
 let inputsIdx = 0;
 function rejectInvalidInput(elements) {

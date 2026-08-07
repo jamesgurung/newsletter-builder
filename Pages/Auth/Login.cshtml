@@ -1,7 +1,8 @@
 ﻿@page
 @{
+  ViewData["BodyClass"] = "login-page";
   var returnUrl = Request.Query["path"].FirstOrDefault();
 }
-<p style="text-align: center; margin-top: 18px">
-  <a href="/auth/login/challenge@(string.IsNullOrEmpty(returnUrl) ? string.Empty : $"?path={returnUrl}")">Sign in with Microsoft</a>
-</p>
+<div class="sign-in-panel">
+  <a class="secondary-button" href="/auth/login/challenge@(string.IsNullOrEmpty(returnUrl) ? string.Empty : $"?path={returnUrl}")">Sign in to newsletter builder</a>
+</div>

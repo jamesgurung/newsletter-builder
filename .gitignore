@@ -1,6 +1,7 @@
 .vs/
 bin/
 obj/
+artifacts/
 Properties/PublishProfiles/
 Properties/ServiceDependencies/
 appsettings.json

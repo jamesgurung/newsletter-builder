@@ -8,6 +8,7 @@ public class ArticlePageModel() : PageModel
 {
   public Article Article { get; set; }
   public bool IsEditor { get; set; }
+  public bool IsAdmin { get; set; }
   public bool IsOwner { get; set; }
   public string BlobBaseUrl { get; set; }
   public string BlobSas { get; set; }
@@ -22,6 +23,7 @@ public class ArticlePageModel() : PageModel
     if (Article is null) return NotFound();
     var username = User.GetUsername();
     IsEditor = User.IsInRole(Roles.Editor);
+    IsAdmin = User.IsInRole(Roles.Admin);
     IsOwner = Article.Owner == username;
     if (!Article.ContributorList.Contains(username) && !IsEditor) return Forbid();
 

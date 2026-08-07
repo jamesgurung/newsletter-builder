@@ -1,4 +1,4 @@
-﻿using Azure;
+using Azure;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -55,6 +55,7 @@ public static class Api
       var domain = context.User.GetDomain();
       user.PartitionKey = domain;
       user.IsEditor = false;
+      user.IsAdmin = false;
       var service = new TableService(domain);
       try
       {
@@ -112,7 +113,7 @@ public static class Api
     {
       var domain = context.User.GetDomain();
       var service = new TableService(domain);
-      if (context.User.GetRole() != Roles.Editor)
+      if (!context.User.IsInRole(Roles.Editor))
       {
         var ev = await service.GetEventAsync(key);
         if (ev.Owner != context.User.GetUsername())
@@ -199,7 +200,7 @@ public static class Api
     {
       var domain = context.User.GetDomain();
       var tableService = new TableService(domain);
-      if (context.User.GetRole() != Roles.Editor)
+      if (!context.User.IsInRole(Roles.Editor))
       {
         var article = await tableService.GetArticleAsync(key);
         if (article.Owner != context.User.GetUsername())
@@ -286,6 +287,12 @@ public static class Api
         return Results.Conflict("Article has been modified by another user.");
       }
       if (!context.User.IsInRole(Roles.Editor) && (!article.ContributorList.Contains(context.User.GetUsername()) || article.IsSubmitted)) return Results.Forbid();
+      if (!context.User.IsInRole(Roles.Admin) && article.Content is not null)
+      {
+        var rejectedImages = JsonSerializer.Deserialize<ArticleContentData>(article.Content).Sections
+          .Where(o => o.Alt == "invalid" && !string.IsNullOrEmpty(o.Image)).Select(o => o.Image).ToHashSet();
+        if (contentData.Sections.Any(o => rejectedImages.Contains(o.Image) && o.Alt != "invalid")) return Results.Forbid();
+      }
       var isBlank = string.IsNullOrEmpty(contentData.Headline) && contentData.Sections.All(o => string.IsNullOrEmpty(o.Text) && string.IsNullOrEmpty(o.Image));
       article.Content = isBlank ? null : JsonSerializer.Serialize(contentData);
       await service.UpdateArticleAsync(article);

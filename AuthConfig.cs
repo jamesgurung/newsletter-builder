@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -102,6 +102,7 @@ public static class AuthConfig
     identity.AddClaim(new Claim(ClaimTypes.Email, $"{user.RowKey}@{user.PartitionKey}"));
     identity.AddClaim(new Claim(ClaimTypes.GivenName, user.FirstName));
     identity.AddClaim(new Claim(ClaimTypes.Role, user.IsEditor ? Roles.Editor : Roles.Contributor));
+    if (user.IsAdmin) identity.AddClaim(new Claim(ClaimTypes.Role, Roles.Admin));
     return new ClaimsPrincipal(identity);
   }
 
@@ -124,7 +125,7 @@ public static class AuthConfig
 
   public static string GetEmail(this ClaimsPrincipal user) => user?.Claims.FirstOrDefault(o => o.Type == ClaimTypes.Email)?.Value;
   public static string GetFirstName(this ClaimsPrincipal user) => user?.Claims.FirstOrDefault(o => o.Type == ClaimTypes.GivenName)?.Value;
-  public static string GetRole(this ClaimsPrincipal user) => user?.Claims.FirstOrDefault(o => o.Type == ClaimTypes.Role)?.Value;
+  public static string GetRoles(this ClaimsPrincipal user) => string.Join(", ", user?.Claims.Where(o => o.Type == ClaimTypes.Role).Select(o => o.Value) ?? []);
   public static string GetUsername(this ClaimsPrincipal user) => user?.Claims.FirstOrDefault(o => o.Type == ClaimTypes.Email)?.Value.Split('@')[0];
   public static string GetDomain(this ClaimsPrincipal user) => user?.Claims.FirstOrDefault(o => o.Type == ClaimTypes.Email)?.Value.Split('@')[1];
 }
@@ -133,4 +134,5 @@ public static class Roles
 {
   public const string Contributor = nameof(Contributor);
   public const string Editor = nameof(Editor);
+  public const string Admin = nameof(Admin);
 }
