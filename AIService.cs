@@ -32,7 +32,7 @@ public static class AIService
         "subject": {
           "type": "string",
           "enum": [ "people", "student work", "other" ],
-          "description": "Categorise the subject of the photo. If it shows one or more students or teachers, say 'people'. If it shows student work, for example artwork or an exercise book, say 'student work'. For anything else, say 'other'."
+          "description": "Categorise the subject of the photo. If it is a real photograph of one or more students or teachers, return 'people'. If it shows student work, for example artwork or an exercise book, return 'student work'. For anything else, such as infographics, logos, photos without people, or AI-generated content, return 'other'."
         }
       },
       "required": ["altText", "subject"], "additionalProperties": false
@@ -60,7 +60,7 @@ public static class AIService
   public static async Task<string> DescribePhotoAsync(Uri photoUri, string title, string identifier)
   {
     var instructions = """
-      You are a helpful assistant who describes photographs.
+      You are a helpful assistant who describes and categorises photographs.
       Be very brief, answering in a few words only.
       The photographs are for use in a school newsletter, and may include students, staff, or student work.
       When referring to people, use educational terms like 'teacher' and 'student'.

@@ -1,89 +1,103 @@
-﻿@page
-@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@page
 @{
   ViewData["BodyClass"] = "index-page";
-  var effectiveDateSetting = Configuration["EffectiveDate"];
-  var effectiveDate = string.IsNullOrWhiteSpace(effectiveDateSetting)
-    ? DateOnly.FromDateTime(DateTime.Today)
-    : DateOnly.ParseExact(effectiveDateSetting, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-  var service = new TableService(User.GetDomain());
-  var events = await service.ListEventsAsync(effectiveDate);
-  var newsletters = await service.ListNewslettersAsync(effectiveDate);
-  var articles = await service.ListArticlesAsync(effectiveDate: effectiveDate);
+  var today = DateOnly.FromDateTime(DateTime.Today);
   var username = User.GetUsername();
   var isEditor = User.IsInRole(Roles.Editor);
-  var users = isEditor ? await service.ListUsersAsync() : null;
-  var nextDate = newsletters.Any() ? DateOnly.ParseExact(newsletters.Last().RowKey, "yyyy-MM-dd").AddDays(7) : effectiveDate;
+  var isAdmin = User.IsInRole(Roles.Admin);
+  var service = new TableService(User.GetDomain());
+  var events = await service.ListEventsAsync(today);
+  var newsletterStartDate = isEditor ? today.AddMonths(-3).AddDays(1) : today;
+  var newsletters = await service.ListNewslettersAsync(newsletterStartDate);
+  var articles = await service.ListArticlesAsync(effectiveDate: newsletterStartDate);
+  var upcomingNewsletters = (isEditor ? newsletters.Where(o => !o.IsSent) : newsletters).OrderBy(o => o.RowKey).ToList();
+  var recentNewsletters = newsletters.Where(o => o.IsSent).OrderByDescending(o => o.RowKey).ToList();
+  var newsletterSections = new[]
+  {
+    (Id: "newsletters", Title: "Upcoming Newsletters", Newsletters: upcomingNewsletters),
+    (Id: "recent-newsletters", Title: "Recent Newsletters", Newsletters: recentNewsletters)
+  };
+  var users = isEditor || isAdmin ? await service.ListUsersAsync() : null;
+  var recipientCount = isAdmin ? await service.CountRecipientsAsync() : 0;
+  var nextDate = upcomingNewsletters.Any() ? DateOnly.ParseExact(upcomingNewsletters.Last().RowKey, "yyyy-MM-dd").AddDays(7) : today;
+  if (nextDate < today) nextDate = today;
   var thisOrganisation = Organisation.ByDomain[User.GetDomain()];
 }
 <nav class="index-tabs" aria-label="Dashboard sections" role="tablist">
-  <button id="newsletters-tab" type="button" role="tab" aria-controls="newsletters-panel" aria-selected="true">Newsletters</button>
-  <button id="events-tab" type="button" role="tab" aria-controls="events-panel" aria-selected="false" tabindex="-1">Events</button>
+  <button id="newsletters-tab" type="button" role="tab" aria-label="Upcoming Newsletters" aria-controls="newsletters-panel" aria-selected="true">Upcoming <span class="newsletter-tab-suffix">Newsletters</span></button>
   @if (isEditor) {
+    <button id="recent-newsletters-tab" type="button" role="tab" aria-label="Recent Newsletters" aria-controls="recent-newsletters-panel" aria-selected="false" tabindex="-1">Recent <span class="newsletter-tab-suffix">Newsletters</span></button>
+  }
+  <button id="events-tab" type="button" role="tab" aria-controls="events-panel" aria-selected="false" tabindex="-1">Events</button>
+  @if (isAdmin) {
     <button id="users-tab" type="button" role="tab" aria-controls="users-panel" aria-selected="false" tabindex="-1">Users</button>
     <button id="recipients-tab" type="button" role="tab" aria-controls="recipients-panel" aria-selected="false" tabindex="-1">Recipients</button>
   }
 </nav>
 
-<section id="newsletters-panel" class="index-section" role="tabpanel" aria-labelledby="newsletters-tab" tabindex="0">
-<div class="index-section-heading">
-  <h1 id="newsletters-heading">Newsletters</h1>
-</div>
-<ul id="newsletters">
-  @foreach (var newsletter in newsletters)
-  {
-    var newsletterArticles = RenderPageModel.OrderArticles(articles.Where(o => o.RowKey.StartsWith(newsletter.RowKey)), newsletter.ArticleOrder);
-    var deadlineReached = DateOnly.ParseExact(newsletter.Deadline, "yyyy-MM-dd") <= effectiveDate;
-    <li data-key="@newsletter.RowKey" data-enableadd="@((isEditor || !deadlineReached).ToString().ToLowerInvariant())">
-      <b>@newsletter.RowKey</b> (deadline @newsletter.Deadline)
-      @if (isEditor) {
-        <a class="publish" href="/@newsletter.RowKey/publish">(Publish)</a>
-        <a class="delete">&#10006;</a>
-      }
-      <ul>
-        @foreach (var article in newsletterArticles)
-        {
-          var name = article.ShortName;
-          <li data-key="@article.RowKey">
-            @if (article.IsApproved) {<div class="status approved" title="Approved"></div>}
-            else if (article.IsSubmitted) {<span class="status submitted" title="Submitted"></span>}
-            else if (article.Content is not null) {<span class="status inprogress" title="In Progress"></span>}
-            else {<span class="status notstarted" title="Not Started"></span>}
-            @if (isEditor || article.ContributorList.Contains(username))
-            {
-              @:<a href="/@article.Date/@name"><b>@article.Title</b></a>
-            } else
-            {
-              @:<b>@article.Title</b>
-            }
-            (@article.Contributors)
-            @if (name != "intro") {
-              @if (isEditor) {
-                <a class="moveup">&#9650;</a>
-                <a class="movedown">&#9660;</a>
-              }
-              @if (!article.IsApproved && (isEditor || (article.Owner == username && !deadlineReached))) {
-                <a class="deletearticle">&#10006;</a>
-              }
-            }
-          </li>
+@foreach (var newsletterSection in newsletterSections)
+{
+  if (newsletterSection.Id == "recent-newsletters" && !isEditor) continue;
+  <section id="@(newsletterSection.Id)-panel" class="index-section" role="tabpanel" aria-labelledby="@(newsletterSection.Id)-tab" tabindex="0">
+  <div class="index-section-heading">
+    <h1 id="@(newsletterSection.Id)-heading">@newsletterSection.Title</h1>
+  </div>
+  <ul id="@newsletterSection.Id" class="newsletter-list">
+    @foreach (var newsletter in newsletterSection.Newsletters)
+    {
+      var newsletterArticles = RenderPageModel.OrderArticles(articles.Where(o => o.RowKey.StartsWith(newsletter.RowKey)), newsletter.ArticleOrder);
+      var deadlineReached = DateOnly.ParseExact(newsletter.Deadline, "yyyy-MM-dd") <= today;
+      <li data-key="@newsletter.RowKey" data-enableadd="@((isEditor || !deadlineReached).ToString().ToLowerInvariant())">
+        <b>@newsletter.RowKey</b> (deadline @newsletter.Deadline)
+        @if (isEditor) {
+          <a class="publish" href="/@newsletter.RowKey/publish">(Publish)</a>
+          <a class="delete">&#10006;</a>
         }
-      </ul>
-    </li>
-  }
-  @if (isEditor)
-  {
-    <li id="addnewslettersection">
-      <h3>Add a newsletter</h3>
-      <label class="index-field-label" for="newsletterdate">Publish date</label>
-      <input id="newsletterdate" type="date" value="@nextDate.ToString("yyyy-MM-dd")" />
-      <label class="index-field-label" for="newsletterdeadline">Deadline</label>
-      <input id="newsletterdeadline" type="date" value="@nextDate.AddDays(-thisOrganisation.DefaultDeadlineDaysBeforePublish).ToString("yyyy-MM-dd")" />
-      <a id="addnewsletter">Add newsletter</a>
-    </li>
-  }
-</ul>
-</section>
+        <ul>
+          @foreach (var article in newsletterArticles)
+          {
+            var name = article.ShortName;
+            <li data-key="@article.RowKey">
+              @if (article.IsApproved) {<div class="status approved" title="Approved"></div>}
+              else if (article.IsSubmitted) {<span class="status submitted" title="Submitted"></span>}
+              else if (article.Content is not null) {<span class="status inprogress" title="In Progress"></span>}
+              else {<span class="status notstarted" title="Not Started"></span>}
+              @if (isEditor || article.ContributorList.Contains(username))
+              {
+                @:<a href="/@article.Date/@name"><b>@article.Title</b></a>
+              } else
+              {
+                @:<b>@article.Title</b>
+              }
+              (@article.Contributors)
+              @if (name != "intro") {
+                @if (isEditor) {
+                  <a class="moveup">&#9650;</a>
+                  <a class="movedown">&#9660;</a>
+                }
+                @if (!article.IsApproved && (isEditor || (article.Owner == username && !deadlineReached))) {
+                  <a class="deletearticle">&#10006;</a>
+                }
+              }
+            </li>
+          }
+        </ul>
+      </li>
+    }
+    @if (isEditor && newsletterSection.Id == "newsletters")
+    {
+      <li id="addnewslettersection">
+        <h3>Add a newsletter</h3>
+        <label class="index-field-label" for="newsletterdate">Publish date</label>
+        <input id="newsletterdate" type="date" value="@nextDate.ToString("yyyy-MM-dd")" />
+        <label class="index-field-label" for="newsletterdeadline">Deadline</label>
+        <input id="newsletterdeadline" type="date" value="@nextDate.AddDays(-thisOrganisation.DefaultDeadlineDaysBeforePublish).ToString("yyyy-MM-dd")" />
+        <a id="addnewsletter">Add newsletter</a>
+      </li>
+    }
+  </ul>
+  </section>
+}
 
 <section id="events-panel" class="index-section" role="tabpanel" aria-labelledby="events-tab" tabindex="0">
 <div class="index-section-heading">
@@ -107,18 +121,18 @@
       }
     </li>
   }
-  <li id="addeventsection">
-    <label class="index-field-label" for="eventstart">Start</label>
-    <input id="eventstart" type="date" autocomplete="off" data-lpignore="true" data-form-type="other" />
-    <label class="index-field-label" for="eventend">End</label>
-    <input id="eventend" type="date" autocomplete="off" data-lpignore="true" data-form-type="other" />
-    <input id="eventtitle" placeholder="Event Title" aria-label="Event title" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" />
-    <a id="addevent">Add event</a>
-  </li>
 </ul>
+<div id="addeventsection">
+  <label class="index-field-label" for="eventstart">Start</label>
+  <input id="eventstart" type="date" autocomplete="off" data-lpignore="true" data-form-type="other" />
+  <label class="index-field-label" for="eventend">End</label>
+  <input id="eventend" type="date" autocomplete="off" data-lpignore="true" data-form-type="other" />
+  <input id="eventtitle" placeholder="Event Title" aria-label="Event title" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" />
+  <a id="addevent">Add event</a>
+</div>
 </section>
 
-@if (isEditor) {
+@if (isAdmin) {
   <section id="users-panel" class="index-section" role="tabpanel" aria-labelledby="users-tab" tabindex="0">
   <div class="index-section-heading">
     <h1 id="users-heading">Users</h1>
@@ -128,20 +142,23 @@
     {
       <li data-key="@user.RowKey"><b>@user.RowKey</b> - @user.DisplayName (@user.FirstName) @if (user.RowKey != username) {<a class="delete">&#10006;</a>}</li>
     }
-    <li id="addusersection">
-      <input id="username" pattern="[a-z0-9'.\-]+" placeholder="Username" aria-label="Username" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" />
-      <input id="userdisplay" placeholder="Display Name" aria-label="Display name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" />
-      <input id="userfirst" placeholder="First Name" aria-label="First name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" />
-      <a id="adduser">Add user</a>
-    </li>
   </ul>
+  <div id="addusersection">
+    <input id="username" pattern="[a-z0-9'.\-]+" placeholder="Username" aria-label="Username" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" />
+    <input id="userdisplay" placeholder="Display Name" aria-label="Display name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" />
+    <input id="userfirst" placeholder="First Name" aria-label="First name" autocomplete="off" data-lpignore="true" data-form-type="other" type="text" />
+    <a id="adduser">Add user</a>
+  </div>
   </section>
 
   <section id="recipients-panel" class="index-section" role="tabpanel" aria-labelledby="recipients-tab" tabindex="0">
   <div class="index-section-heading">
     <h1 id="recipients-heading">Recipients</h1>
   </div>
-  <p class="recipients-action"><a href="/recipients">Manage recipients</a></p>
+  <p>You currently have @recipientCount registered recipients.</p>
+  <p>Uploading new CSV files will replace all existing recipients.</p>
+  <p id="status" class="recipients-action"><a id="upload">Upload</a></p>
+  <input id="files" type="file" multiple accept="text/csv" style="display: none" />
   </section>
 }
 
@@ -159,12 +176,18 @@
 @section Scripts {
   <script>
     const isEditor = @isEditor.ToString().ToLowerInvariant();
+    const isAdmin = @isAdmin.ToString().ToLowerInvariant();
     const me = '@username.ToString()';
-    @if (isEditor) {
+    @if (isEditor || isAdmin) {
     @:const usernames = [@Html.Raw(string.Join(',', users.Select(o => $"\"{o.RowKey}\"")))];
+    }
+    @if (isEditor) {
     @:const defaultDeadlineOffset = @thisOrganisation.DefaultDeadlineDaysBeforePublish;
     }
   </script>
   <script src="/js/shared.js" asp-append-version="true"></script>
   <script src="/js/index.js" asp-append-version="true"></script>
+  @if (isAdmin) {
+    <script src="/js/recipients.js" asp-append-version="true"></script>
+  }
 }

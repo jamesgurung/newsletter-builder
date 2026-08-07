@@ -80,7 +80,7 @@ function getOrder(ul) {
 
 // Newsletters and Articles
 
-document.querySelectorAll('#newsletters > li > ul').forEach(ul => {
+document.querySelectorAll('.newsletter-list > li > ul').forEach(ul => {
   ul.appendChild(document.getElementById('addarticletemplate').content.cloneNode(true));
   if (ul.parentNode.dataset.enableadd !== 'true') ul.lastElementChild.style.display = 'none';
 });
@@ -129,7 +129,7 @@ if (isEditor) {
   });
 }
 
-document.getElementById('newsletters').addEventListener('click', async e => {
+async function handleNewsletterClick(e) {
   if (e.target.classList.contains('delete')) {
     const li = e.target.closest('li');
     if (li.getElementsByTagName('ul')[0].getElementsByTagName('li').length > 2) {
@@ -212,7 +212,7 @@ document.getElementById('newsletters').addEventListener('click', async e => {
     const index = Array.prototype.indexOf.call(siblings, current);
     if (index === siblings.length - 2) {
       const nextNewsletter = parent.parentNode.nextElementSibling;
-      if (nextNewsletter.classList.contains('addnewslettersection')) return;
+      if (!nextNewsletter || nextNewsletter.id === 'addnewslettersection') return;
       if (!confirm('Are you sure you want to move this article to the next newsletter?')) return;
       const nextNewsletterUl = nextNewsletter.getElementsByTagName('ul')[0];
       nextNewsletterUl.insertBefore(current, nextNewsletterUl.children[1]);
@@ -228,7 +228,9 @@ document.getElementById('newsletters').addEventListener('click', async e => {
       await request(`/api/newsletters/${parent.parentNode.dataset.key}/order`, 'PUT', { Order: getOrder(parent) });
     }
   }
-});
+}
+
+for (const newsletterList of document.querySelectorAll('.newsletter-list')) newsletterList.addEventListener('click', handleNewsletterClick);
 
 // Events
 
@@ -260,7 +262,7 @@ document.getElementById('addevent').addEventListener('click', async e => {
   li.innerHTML = `<b>${ev.displayDate}</b> - ${ev.displayTitle}${isEditor ? '' : ' (Pending Approval)'} <a class="delete">&#10006;</a>`;
   li.dataset.key = ev.rowKey;
   if (!isEditor) li.classList.add('pendingapproval');
-  document.getElementById('events').insertBefore(li, document.getElementById('addeventsection'));
+  document.getElementById('events').appendChild(li);
   clearAndFocus(['eventstart', 'eventend', 'eventtitle']);
 });
 
@@ -283,7 +285,7 @@ document.getElementById('events').addEventListener('click', async e => {
 });
 
 // Users
-if (isEditor) {
+if (isAdmin) {
   rejectInvalidInput([document.getElementById('username')]);
   bindEnterKey([document.getElementById('userfirst')]);
 
@@ -297,7 +299,7 @@ if (isEditor) {
     const li = document.createElement('li');
     li.innerHTML = `<b>${username}</b> - ${userdisplay} (${userfirst}) <a class="delete">&#10006;</a>`;
     li.dataset.key = username;
-    document.getElementById('users').insertBefore(li, document.getElementById('addusersection'));
+    document.getElementById('users').appendChild(li);
     clearAndFocus(['username', 'userdisplay', 'userfirst']);
     usernames.push(username);
   });

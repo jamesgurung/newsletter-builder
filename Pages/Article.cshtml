@@ -6,7 +6,16 @@
   var articleDate = DateOnly.ParseExact(Model.Article.Date, "yyyy-MM-dd");
 }
 
-<h1 class="article-heading">@articleDate.ToString("d MMMM yyyy") &mdash; @Model.Article.Title</h1>
+<header class="article-heading">
+  <div class="article-heading-main">
+    <div class="article-date">@articleDate.ToString("d MMMM yyyy")</div>
+    <h1 id="article-title" contenteditable="@Model.IsEditor.ToString().ToLowerInvariant()" aria-label="Article title">@Model.Article.Title</h1>
+  </div>
+  <div class="article-contributor">
+    <span>Contributors</span>
+    <div id="article-contributors" contenteditable="@Model.IsEditor.ToString().ToLowerInvariant()" aria-label="Article contributors" spellcheck="false">@Model.Article.Contributors</div>
+  </div>
+</header>
 
 <div id="aiwriting" style="display: none">
   <div style="font-weight: bold; font-size: 16px; color: #1379ce; margin: 6px 0 12px">Write using AI</div>
@@ -113,7 +122,7 @@
     let coverPhoto = @Html.Raw($"\"{Model.CoverPhoto}\"" ?? "null");
     let etag = @Json.Serialize(Model.Article.ETag);
   </script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/2.1.1/cropper.min.js" integrity="sha512-uEAbGvrDLgjKT/DqgIk9xOsZrcT1nn2c1gcA2SZ6uOKRMX26R1o0nkV9JjFBiivd8LtYMViEPKeJvs0p0hGeeQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="/lib/cropperjs/dist/cropper.min.js" asp-append-version="true"></script>
   <script src="/js/shared.js" asp-append-version="true"></script>
   <script src="/js/article.js" asp-append-version="true"></script>
 }

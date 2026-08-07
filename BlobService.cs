@@ -35,21 +35,24 @@ public class BlobService(string domain)
     await blob.UploadAsync(stream, options);
   }
 
-  public async Task DeleteImageAsync(string articleKey, string imageName)
+  public async Task<bool> DeleteImageAsync(string articleKey, string imageName)
   {
     var container = client.GetBlobContainerClient("photos");
     var blobName = $"{domain}/{articleKey}/{imageName}";
-    await container.DeleteBlobIfExistsAsync(blobName, DeleteSnapshotsOption.IncludeSnapshots);
+    return (await container.DeleteBlobIfExistsAsync(blobName, DeleteSnapshotsOption.IncludeSnapshots)).Value;
   }
 
-  public async Task DeleteArticleImagesAsync(string articleKey)
+  public async Task<List<string>> DeleteArticleImagesAsync(string articleKey)
   {
     var container = client.GetBlobContainerClient("photos");
     var getBlobsOptions = new GetBlobsOptions { Prefix = $"{domain}/{articleKey}/" };
+    var imageNames = new List<string>();
     await foreach (var item in container.GetBlobsAsync(getBlobsOptions))
     {
       await container.DeleteBlobIfExistsAsync(item.Name, DeleteSnapshotsOption.IncludeSnapshots);
+      imageNames.Add(item.Name.Split('/').Last());
     }
+    return imageNames;
   }
 
   public async Task MoveImagesAsync(string oldArticleKey, string newArticleKey)
@@ -103,6 +106,14 @@ public class BlobService(string domain)
     var container = client.GetBlobContainerClient("photos");
     var blobName = $"{domain}/{articleKey}/{imageName}";
     return await container.GetBlobClient(blobName).ExistsAsync();
+  }
+
+  public async Task<byte[]> DownloadImageAsync(string articleKey, string imageName)
+  {
+    var container = client.GetBlobContainerClient("photos");
+    var blobName = $"{domain}/{articleKey}/{imageName}";
+    var response = await container.GetBlobClient(blobName).DownloadContentAsync();
+    return response.Value.Content.ToArray();
   }
 
   public async Task PublishImagesAsync(string articleKey, IList<string> imageOrder)

@@ -1,0 +1,13 @@
+{
+  "version": "3.0",
+  "defaultProvider": "jsdelivr",
+  "libraries": [
+    {
+      "library": "cropperjs@2.1.1",
+      "destination": "wwwroot/lib/cropperjs/",
+      "files": [
+        "dist/cropper.min.js"
+      ]
+    }
+  ]
+}

@@ -215,32 +215,30 @@ input[type="date" i] {
   font-size: 1rem;
 }
 
-#newsletters,
-#events,
-#users {
+.newsletter-list {
   margin-left: 0;
   list-style: none;
 }
 
-#newsletters > li,
+.newsletter-list > li,
 #events > li,
 #users > li {
   margin: 0;
   padding: 12px 0;
 }
 
-#newsletters > li:first-child,
+.newsletter-list > li:first-child,
 #events > li:first-child,
 #users > li:first-child {
   padding-top: 0;
 }
 
-#newsletters > li > ul {
+.newsletter-list > li > ul {
   margin: 8px 0 0;
   list-style: none;
 }
 
-#newsletters > li > ul > li {
+.newsletter-list > li > ul > li {
   margin: 0;
   padding: 7px 0;
 }
@@ -318,15 +316,15 @@ span.grey {
   color: var(--ink-muted);
 }
 
-#newsletters li:first-child li:nth-child(2) a.moveup {
+.newsletter-list li:first-child li:nth-child(2) a.moveup {
   display: none;
 }
 
-#newsletters li:nth-last-child(2) li:last-child a.movedown {
+.newsletter-list li:nth-last-child(2) li:last-child a.movedown {
   display: none;
 }
 
-#newsletters li li:not(:last-child) {
+.newsletter-list li li:not(:last-child) {
   position: relative;
   padding-left: 24px;
 }
@@ -443,14 +441,45 @@ span.red {
 }
 
 .article-page .article-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
   margin: 0 0 1.5rem;
   padding-bottom: 0.75rem;
   border-bottom: 4px solid var(--border-colour);
+}
+
+.article-page .article-heading-main {
+  min-width: 0;
+}
+
+.article-page .article-date,
+.article-page .article-contributor span {
+  color: grey;
+  font-size: 0.8rem;
+}
+
+.article-page .article-date {
+  margin-bottom: 0.2rem;
+}
+
+.article-page #article-title {
+  margin: 0;
   color: var(--ink);
   font-size: 1.4rem;
   font-weight: 650;
   line-height: 1.3;
   text-align: left;
+}
+
+.article-page .article-contributor {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.article-page #article-contributors {
+  font-weight: 600;
 }
 
 .article-page .article-divider {
@@ -893,6 +922,16 @@ span.red {
     height: auto;
     opacity: 1;
   }
+
+  .article-page .article-heading {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .article-page .article-contributor {
+    text-align: left;
+  }
 }
 
 .article-page .page-content,
@@ -921,7 +960,7 @@ span.red {
 .index-page .index-tabs button {
   min-width: 120px;
   min-height: 44px;
-  flex: 1 0 auto;
+  flex: 1 0 0;
   padding: 0.65rem 1rem;
   border: 0;
   border-bottom: 3px solid transparent;
@@ -967,14 +1006,12 @@ span.red {
   line-height: 1.25;
 }
 
-.index-page #newsletters,
-.index-page #events,
-.index-page #users {
+.index-page .newsletter-list {
   margin: 0;
   padding: 0;
 }
 
-.index-page #newsletters > li,
+.index-page .newsletter-list > li,
 .index-page #events > li,
 .index-page #users > li {
   padding: 0.9rem 0;
@@ -987,23 +1024,23 @@ span.red {
   padding-bottom: 0.2rem;
 }
 
-.index-page #newsletters > li:first-child,
+.index-page .newsletter-list > li:first-child,
 .index-page #events > li:first-child,
 .index-page #users > li:first-child {
   padding-top: 0;
 }
 
-.index-page #newsletters > li > ul {
+.index-page .newsletter-list > li > ul {
   margin: 0.65rem 0 0 1.5rem;
   padding: 0;
 }
 
-.index-page #newsletters > li > ul > li {
+.index-page .newsletter-list > li > ul > li {
   padding-top: 0.2rem;
   padding-bottom: 0.2rem;
 }
 
-.index-page #newsletters > li > b,
+.index-page .newsletter-list > li > b,
 .index-page #events > li > b,
 .index-page #users > li > b {
   color: var(--ink);
@@ -1011,8 +1048,8 @@ span.red {
 }
 
 .index-page #newsletters > #addnewslettersection,
-.index-page #events > #addeventsection,
-.index-page #users > #addusersection,
+.index-page #addeventsection,
+.index-page #addusersection,
 .index-page .addarticlesection {
   gap: 0.75rem;
   border: 1px solid #e0e4e9;
@@ -1097,6 +1134,7 @@ span.red {
 .index-page #addnewsletter,
 .index-page #addevent,
 .index-page #adduser,
+.index-page #upload,
 .index-page .addarticle {
   min-height: 44px;
   display: inline-flex;
@@ -1109,6 +1147,7 @@ span.red {
 .index-page #addnewsletter,
 .index-page #addevent,
 .index-page #adduser,
+.index-page #upload,
 .index-page .addarticle {
   border-color: #b9c0c9;
   background-color: #fff;
@@ -1118,6 +1157,7 @@ span.red {
 .index-page #addnewsletter:hover,
 .index-page #addevent:hover,
 .index-page #adduser:hover,
+.index-page #upload:hover,
 .index-page .addarticle:hover {
   border-color: #9da7b3;
   background-color: #eef1f4;
@@ -1162,6 +1202,12 @@ span.red {
   text-decoration: none;
 }
 
+@media (max-width: 1172px) {
+  .index-page .newsletter-tab-suffix {
+    display: none;
+  }
+}
+
 @media (max-width: 700px) {
   .article-page .page-content,
   .index-page .page-content {
@@ -1179,7 +1225,7 @@ span.red {
     padding-left: 0.85rem;
   }
 
-  .index-page #newsletters > li > ul {
+  .index-page .newsletter-list > li > ul {
     margin-left: 0;
   }
 

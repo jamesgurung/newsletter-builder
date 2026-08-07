@@ -15,6 +15,7 @@ public class TableService(string domain)
   private static TableServiceClient client;
   private static readonly string[] selectPartitionKey = ["PartitionKey"];
   private static readonly string[] selectRowKey = ["RowKey"];
+  internal string Domain => domain;
 
   // Reduces cold start latency by several seconds
   public static async Task WarmUpAsync()
@@ -26,7 +27,8 @@ public class TableService(string domain)
       client.GetTableClient("articles").QueryAsync<TableEntity>(o => o.PartitionKey == nonExistentKey).ToListAsync(),
       client.GetTableClient("events").QueryAsync<TableEntity>(o => o.PartitionKey == nonExistentKey).ToListAsync(),
       client.GetTableClient("users").QueryAsync<TableEntity>(o => o.PartitionKey == nonExistentKey).ToListAsync(),
-      client.GetTableClient("recipients").QueryAsync<TableEntity>(o => o.PartitionKey == nonExistentKey).ToListAsync()
+      client.GetTableClient("recipients").QueryAsync<TableEntity>(o => o.PartitionKey == nonExistentKey).ToListAsync(),
+      client.GetTableClient("imagehashes").QueryAsync<TableEntity>(o => o.PartitionKey == nonExistentKey).ToListAsync()
     };
     await Task.WhenAll(tasks);
   }
@@ -126,6 +128,32 @@ public class TableService(string domain)
     var table = client.GetTableClient("articles");
     var resp = await table.UpdateEntityAsync(article, article.ETag, TableUpdateMode.Replace);
     article.ETag = resp.Headers.ETag.Value;
+  }
+
+  public async Task<List<StoredImageHash>> ListImageHashesAsync()
+  {
+    var table = client.GetTableClient("imagehashes");
+    return await table.QueryAsync<StoredImageHash>(o => o.PartitionKey == domain, select: ["RowKey", "Sha256", "PerceptualHash"]).ToListAsync();
+  }
+
+  public async Task UpsertImageHashAsync(StoredImageHash imageHash)
+  {
+    ArgumentNullException.ThrowIfNull(imageHash);
+    imageHash.PartitionKey = domain;
+    var table = client.GetTableClient("imagehashes");
+    await table.UpsertEntityAsync(imageHash, TableUpdateMode.Replace);
+  }
+
+  public async Task DeleteImageHashAsync(string imageName)
+  {
+    var table = client.GetTableClient("imagehashes");
+    try
+    {
+      await table.DeleteEntityAsync(domain, imageName, ETag.All);
+    }
+    catch (RequestFailedException ex) when (ex.Status == 404)
+    {
+    }
   }
 
   public async Task<CalendarEvent> GetEventAsync(string key)

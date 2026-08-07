@@ -44,7 +44,7 @@ public static class Api
 
     var group = app.MapGroup("/api").ValidateAntiforgery();
 
-    group.MapPost("/users", [Authorize(Roles = Roles.Editor)] async (User user, HttpContext context) =>
+    group.MapPost("/users", [Authorize(Roles = Roles.Admin)] async (User user, HttpContext context) =>
     {
       user.RowKey = user.RowKey?.Trim().ToLowerInvariant();
       user.DisplayName = user.DisplayName?.Trim();
@@ -68,7 +68,7 @@ public static class Api
       return Results.Ok();
     });
 
-    group.MapDelete("/users/{username}", [Authorize(Roles = Roles.Editor)] async (string username, HttpContext context) =>
+    group.MapDelete("/users/{username}", [Authorize(Roles = Roles.Admin)] async (string username, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
       var service = new TableService(domain);
@@ -196,6 +196,31 @@ public static class Api
       return Results.Ok();
     });
 
+    group.MapPut("/articles/{key}/metadata", [Authorize(Roles = Roles.Editor)] async (string key, ArticleMetadataData metadata, HttpContext context) =>
+    {
+      if (metadata is null) return Results.BadRequest("No metadata submitted.");
+      var title = System.Text.RegularExpressions.Regex.Replace(metadata.Title?.Trim() ?? "", @"\s+", " ");
+      if (string.IsNullOrEmpty(title) || !System.Text.RegularExpressions.Regex.IsMatch(title, @"^[a-z0-9A-Z' \-:&]+$")) return Results.BadRequest("Invalid article title.");
+      var contributors = (metadata.Contributors ?? "").Split(',').Select(o => o.Trim().ToLowerInvariant()).ToList();
+      if (contributors.Any(string.IsNullOrEmpty)) return Results.BadRequest("Contributors required.");
+
+      var domain = context.User.GetDomain();
+      var service = new TableService(domain);
+      var article = await service.GetArticleAsync(key);
+      if (article is null) return Results.NotFound("Article not found.");
+      if (article.ETag.ToString() != metadata.ETag) return Results.Conflict("Article has been modified by another user.");
+      foreach (var username in contributors)
+      {
+        var user = await service.GetUserAsync(username);
+        if (user is null) return Results.BadRequest($"User not found: {username}.");
+      }
+
+      article.Title = title;
+      article.Contributors = string.Join(',', contributors);
+      await service.UpdateArticleAsync(article);
+      return Results.Ok(article.ETag);
+    });
+
     group.MapDelete("/articles/{key}", async (string key, [FromQuery] string order, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
@@ -218,7 +243,10 @@ public static class Api
       await tableService.UpdateNewsletterAsync(newsletter);
 
       var blobService = new BlobService(domain);
-      await blobService.DeleteArticleImagesAsync(key);
+      var imageNames = await blobService.DeleteArticleImagesAsync(key);
+      var duplicationDetectionService = new DuplicationDetectionService(tableService);
+      foreach (var imageName in imageNames)
+        await duplicationDetectionService.DeleteImageHashAsync(imageName);
       return Results.Ok();
     });
 
@@ -290,8 +318,8 @@ public static class Api
       if (!context.User.IsInRole(Roles.Admin) && article.Content is not null)
       {
         var rejectedImages = JsonSerializer.Deserialize<ArticleContentData>(article.Content).Sections
-          .Where(o => o.Alt == "invalid" && !string.IsNullOrEmpty(o.Image)).Select(o => o.Image).ToHashSet();
-        if (contentData.Sections.Any(o => rejectedImages.Contains(o.Image) && o.Alt != "invalid")) return Results.Forbid();
+          .Where(o => o.Alt is "invalid" or "duplicate" && !string.IsNullOrEmpty(o.Image)).Select(o => o.Image).ToHashSet();
+        if (contentData.Sections.Any(o => rejectedImages.Contains(o.Image) && o.Alt is not "invalid" and not "duplicate")) return Results.Forbid();
       }
       var isBlank = string.IsNullOrEmpty(contentData.Headline) && contentData.Sections.All(o => string.IsNullOrEmpty(o.Text) && string.IsNullOrEmpty(o.Image));
       article.Content = isBlank ? null : JsonSerializer.Serialize(contentData);
@@ -323,10 +351,29 @@ public static class Api
       if (article is null) return Results.NotFound("Article not found.");
       if (!context.User.IsInRole(Roles.Editor) && (!article.ContributorList.Contains(context.User.GetUsername()) || article.IsSubmitted)) return Results.Forbid();
       var blobService = new BlobService(domain);
+      var image = await blobService.DownloadImageAsync(key, imageName);
+      var duplicationDetectionService = new DuplicationDetectionService(tableService);
+      if (await duplicationDetectionService.CheckAndStoreImageAsync(imageName, image)) return Results.Ok("duplicate");
       var sas = blobService.GetSasQueryString(key, imageName);
       var imageUrl = $"{BlobService.Uri}photos/{domain}/{key}/{imageName}?{sas}";
       var description = await AIService.DescribePhotoAsync(new Uri(imageUrl), article.Title, key);
       return Results.Ok(description);
+    });
+
+    group.MapPost("/articles/{key}/image/{imageName}/duplicate/{replacedImageName}", async (string key, string imageName, string replacedImageName, HttpContext context) =>
+    {
+      var domain = context.User.GetDomain();
+      var tableService = new TableService(domain);
+      var article = await tableService.GetArticleAsync(key);
+      if (article is null) return Results.NotFound("Article not found.");
+      if (!context.User.IsInRole(Roles.Editor) && (!article.ContributorList.Contains(context.User.GetUsername()) || article.IsSubmitted)) return Results.Forbid();
+      if (article.Content is null || !JsonSerializer.Deserialize<ArticleContentData>(article.Content).Sections.Any(o => o.Image == replacedImageName)) return Results.BadRequest("Invalid replacement image.");
+
+      var blobService = new BlobService(domain);
+      var image = await blobService.DownloadImageAsync(key, imageName);
+      var duplicationDetectionService = new DuplicationDetectionService(tableService);
+      var isDuplicate = await duplicationDetectionService.CheckAndStoreImageAsync(imageName, image, replacedImageName);
+      return Results.Ok(isDuplicate);
     });
 
     group.MapDelete("/articles/{key}/image/{imageName}", async (string key, string imageName, HttpContext context) =>
@@ -337,7 +384,8 @@ public static class Api
       if (article is null) return Results.NotFound("Article not found.");
       if (!context.User.IsInRole(Roles.Editor) && (!article.ContributorList.Contains(context.User.GetUsername()) || article.IsSubmitted)) return Results.Forbid();
       var blobService = new BlobService(domain);
-      await blobService.DeleteImageAsync(key, imageName);
+      if (await blobService.DeleteImageAsync(key, imageName))
+        await new DuplicationDetectionService(tableService).DeleteImageHashAsync(imageName);
       return Results.Ok();
     });
 
@@ -411,7 +459,7 @@ public static class Api
       }
     });
 
-    group.MapPost("/recipients", [Authorize(Roles = Roles.Editor)] async (RecipientData recipientsData, HttpContext context) =>
+    group.MapPost("/recipients", [Authorize(Roles = Roles.Admin)] async (RecipientData recipientsData, HttpContext context) =>
     {
       var domain = context.User.GetDomain();
       var service = new TableService(domain);

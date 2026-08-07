@@ -2,6 +2,8 @@
 
 const article = document.getElementsByTagName('article')[0];
 const headline = document.getElementById('headline');
+const articleTitle = document.getElementById('article-title');
+const articleContributors = document.getElementById('article-contributors');
 const invalidCharacters = /[^A-Za-z0-9\[\]\*!"£$%&();:',.=_#@\/\\?\s\u00E0\u00E2\u00E6\u00E7\u00E9\u00E8\u00EA\u00EB\u00EE\u00EF\u00F4\u0153\u00F9\u00FB\u00FC\u00FF\u00C0\u00C2\u00C6\u00C7\u00C9\u00C8\u00CA\u00CB\u00CE\u00CF\u00D4\u0152\u00D9\u00DB\u00DC\u0178\u00A1\u00BF\+-]+/g;
 const invalidWhitespace = /[\f\t\v\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]/g;
 const repeatedSpaces = /\s\s+/g;
@@ -24,6 +26,38 @@ if (content) {
   }
 }
 configureInput([document.getElementById('headline')]);
+if (isEditor) {
+  const metadataValues = new Map([[articleTitle, articleTitle.innerText], [articleContributors, articleContributors.innerText]]);
+  for (const el of [articleTitle, articleContributors]) {
+    el.addEventListener('input', () => saved = false);
+    el.addEventListener('blur', async e => {
+      if (saved) return;
+      if (e.target === articleTitle)
+        e.target.innerText = e.target.innerText.replace(/\s+/g, ' ').trim();
+      else
+        e.target.innerText = e.target.innerText.split(',').map(o => o.trim().toLowerCase()).join(',');
+      if (e.target.innerText === metadataValues.get(e.target)) {
+        saved = true;
+        return;
+      }
+      const resp = await request(`/api/articles/${articleKey}/metadata`, 'PUT', {
+        title: articleTitle.innerText,
+        contributors: articleContributors.innerText,
+        etag
+      });
+      if (!resp.ok) {
+        e.target.innerText = metadataValues.get(e.target);
+        saved = true;
+        return;
+      }
+      etag = await resp.json();
+      metadataValues.set(articleTitle, articleTitle.innerText);
+      metadataValues.set(articleContributors, articleContributors.innerText);
+      flash(e.target);
+      saved = true;
+    });
+  }
+}
 if (isSubmitted) {
   lockEditing();
 } else {
@@ -69,22 +103,25 @@ function setImage(el, image, alt, consent) {
   const blurImageElement = el.querySelector('.blur-image-section');
   const isGenerating = alt === 'generating';
   const isInvalid = alt === 'invalid';
+  const isDuplicate = alt === 'duplicate';
+  const isRejected = isInvalid || isDuplicate;
 
   el.dataset.image = (image && image.substring(0, 5) !== 'blob:') ? image : '';
 
   uploadElement.style.display = image ? 'none' : null;
   imageElement.src = image ? (image.substring(0, 5) === 'blob:' ? image : `${blobBaseUrl}${domain}/${articleKey}/${image}?${sas}`) : '';
   imageElement.style.display = image ? null : 'none';
-  altTextElement.contentEditable = !isGenerating && !isInvalid;
-  altTextElement.className = isGenerating ? 'alt-text alt-text-loading' : (isInvalid ? 'alt-text alt-text-error' : 'alt-text');
+  altTextElement.contentEditable = !isGenerating && !isRejected;
+  altTextElement.className = isGenerating ? 'alt-text alt-text-loading' : (isRejected ? 'alt-text alt-text-error' : 'alt-text');
+  altTextElement.dataset.rejection = isRejected ? alt : '';
   if (isGenerating) altTextElement.innerHTML = '<div class="typing" title="Generating caption..."><span></span><span></span><span></span></div>';
-  else altTextElement.innerText = isInvalid ? 'Only photos of students, staff, or student work are accepted. Please upload a different photo.' : (alt ?? '');
+  else altTextElement.innerText = isInvalid ? 'Only photos of students, staff, or student work are accepted. Please upload a different photo.' : (isDuplicate ? 'This photo has been used before. Please upload a different photo.' : (alt ?? ''));
   altTextElement.style.display = image ? null : 'none';
-  consentAreaElement.style.display = image && !isGenerating && !isInvalid ? null : 'none';
+  consentAreaElement.style.display = image && !isGenerating && !isRejected ? null : 'none';
   consentElement.checked = image ? consent : false;
   clearElement.style.display = image && !isGenerating ? null : 'none';
-  blurImageElement.style.display = image && !isGenerating && !isInvalid ? null : 'none';
-  approveElement.style.display = image && isInvalid && isAdmin ? null : 'none';
+  blurImageElement.style.display = image && !isGenerating && !isRejected ? null : 'none';
+  approveElement.style.display = image && isRejected && isAdmin ? null : 'none';
   setCoverPhotoElement.style.display = 'none';
 }
 
@@ -98,9 +135,8 @@ async function save() {
       const includeImage = el.dataset.includeimage === 'true';
       const imageUrl = includeImage && imageSection.dataset.image ? imageSection.dataset.image : null;
       const alt = imageUrl ? imageSection.querySelector('.alt-text') : null;
-      const isInvalidImage = imageUrl ? alt.classList.contains('alt-text-error') : null;
       const isAltTextLoading = imageUrl ? alt.classList.contains('alt-text-loading') : null;
-      const altText = imageUrl ? (isInvalidImage ? 'invalid' : (isAltTextLoading ? '' : alt.innerText)) : null;
+      const altText = imageUrl ? (alt.dataset.rejection || (isAltTextLoading ? '' : alt.innerText)) : null;
       const consent = imageUrl ? imageSection.querySelector('input[type="checkbox"]').checked : false;
       return {
         text: el.getElementsByClassName('section-text')[0].innerText,
@@ -222,6 +258,7 @@ function isValid(verb) {
   if (content.sections.some(s => s.text.length > 500)) { alert(`Unable to ${verb}: Paragraphs must be no longer than 500 characters.`); return false; }
   if (content.sections.some(s => s.includeImage && !s.image)) { alert(`Unable to ${verb}: All paragraphs must contain a photo.`); return false; }
   if (content.sections.some(s => s.includeImage && s.alt === 'invalid')) { alert(`Unable to ${verb}: All photos must be of students, staff, or student work.`); return false; }
+  if (content.sections.some(s => s.includeImage && s.alt === 'duplicate')) { alert(`Unable to ${verb}: Photos cannot duplicate previously used photos.`); return false; }
   if (content.sections.some(s => s.includeImage && !s.alt)) { alert(`Unable to ${verb}: All photos must include a description.`); return false; }
   if (content.sections.some(s => s.includeImage && !s.consent)) { alert(`Unable to ${verb}: All photos must be ticked for photo consent. You can blur faces if needed.`); return false; }
   for (const word of bannedWords) {
@@ -262,7 +299,7 @@ if (isEditor) {
       button.classList.remove('disabled');
       button.style.cursor = '';
       isApproved = false;
-      [...document.querySelectorAll('#headline,.section-text,.alt-text')].forEach(el => el.contentEditable = true);
+      [...document.querySelectorAll('#article-title,#article-contributors,#headline,.section-text,.alt-text')].forEach(el => el.contentEditable = true);
       [...document.querySelectorAll('.section-delete,.clear-image,.blur-image-section,#addsectioncontainer,#submit')].forEach(el => el.style.display = '');
       [...document.querySelectorAll('.section-text,.section-image,#headline')].forEach(el => el.style.border = '');
       [...document.querySelectorAll('input')].forEach(el => el.disabled = false);
@@ -299,7 +336,7 @@ function lockEditing() {
       button.innerText = isApproved ? 'Approved by editor' : 'Submitted to editor';
     }
     aiButton.style.display = 'none';
-    [...document.querySelectorAll('#headline,.section-text,.alt-text')].forEach(el => el.contentEditable = false);
+    [...document.querySelectorAll('#article-title,#article-contributors,#headline,.section-text,.alt-text')].forEach(el => el.contentEditable = false);
     [...document.querySelectorAll('.section-delete,.clear-image,.blur-image-section,#addsectioncontainer')].forEach(el => el.style.display = 'none');
     [...document.querySelectorAll('.section-text,.section-image,#headline')].forEach(el => el.style.border = 'none');
     [...document.querySelectorAll('input')].forEach(el => el.disabled = true);
@@ -610,9 +647,18 @@ document.getElementById('blur-save').addEventListener('click', async () => {
     return;
   }
   const imageUrl = await resp.json();
-  blurImageSection.dataset.image = imageUrl;
-  blurImageSection.querySelector('img').src = `${blobBaseUrl}${domain}/${articleKey}/${imageUrl}?${sas}`;
-  await save();
+  const previousDescription = blurImageSection.querySelector('.alt-text').innerText;
+  const consent = blurImageSection.querySelector('input[type="checkbox"]').checked;
+  setImage(blurImageSection, imageUrl, 'generating', consent);
+  const duplicateResp = await request(`/api/articles/${articleKey}/image/${imageUrl}/duplicate/${blurCurrentImageName}`, 'POST');
+  if (!duplicateResp.ok) {
+    setImage(blurImageSection, blurCurrentImageName, previousDescription, consent);
+    await request(`/api/articles/${articleKey}/image/${imageUrl}`, 'DELETE');
+    return;
+  }
+  const isDuplicate = await duplicateResp.json();
+  setImage(blurImageSection, imageUrl, isDuplicate ? 'duplicate' : previousDescription, consent);
+  if (!await save()) return;
   await request(`/api/articles/${articleKey}/image/${blurCurrentImageName}`, 'DELETE');
   document.getElementById('blur-editor').style.display = 'none';
 });
