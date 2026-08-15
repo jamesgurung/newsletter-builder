@@ -5,17 +5,19 @@ using System.Globalization;
 
 namespace NewsletterBuilder;
 
-public class TableService(string domain)
+public class TableService
 {
-  public static void Configure(string connectionString)
+  public static void Configure(string connectionString, string partitionKey)
   {
     client = new TableServiceClient(connectionString);
+    storagePartitionKey = partitionKey;
   }
 
   private static TableServiceClient client;
+  private static string storagePartitionKey;
   private static readonly string[] selectPartitionKey = ["PartitionKey"];
   private static readonly string[] selectRowKey = ["RowKey"];
-  internal string Domain => domain;
+  internal string StoragePartitionKey => storagePartitionKey;
 
   // Reduces cold start latency by several seconds
   public static async Task WarmUpAsync()
@@ -36,18 +38,20 @@ public class TableService(string domain)
   public async Task<User> GetUserAsync(string username)
   {
     var table = client.GetTableClient("users");
-    var result = await table.GetEntityIfExistsAsync<User>(domain, username);
+    var result = await table.GetEntityIfExistsAsync<User>(storagePartitionKey, username);
     return result.HasValue ? result.Value : null;
   }
 
   public async Task<List<User>> ListUsersAsync()
   {
     var table = client.GetTableClient("users");
-    return await table.QueryAsync<User>(o => o.PartitionKey == domain).ToListAsync();
+    return await table.QueryAsync<User>(o => o.PartitionKey == storagePartitionKey).ToListAsync();
   }
 
   public async Task CreateUserAsync(User user)
   {
+    ArgumentNullException.ThrowIfNull(user);
+    user.PartitionKey = storagePartitionKey;
     var table = client.GetTableClient("users");
     await table.AddEntityAsync(user);
   }
@@ -55,13 +59,13 @@ public class TableService(string domain)
   public async Task DeleteUserAsync(string username)
   {
     var table = client.GetTableClient("users");
-    await table.DeleteEntityAsync(domain, username);
+    await table.DeleteEntityAsync(storagePartitionKey, username);
   }
 
   public async Task<Newsletter> GetNewsletterAsync(string date)
   {
     var table = client.GetTableClient("newsletters");
-    var result = await table.GetEntityIfExistsAsync<Newsletter>(domain, date);
+    var result = await table.GetEntityIfExistsAsync<Newsletter>(storagePartitionKey, date);
     return result.HasValue ? result.Value : null;
   }
 
@@ -69,11 +73,13 @@ public class TableService(string domain)
   {
     var table = client.GetTableClient("newsletters");
     var today = (effectiveDate ?? DateOnly.FromDateTime(DateTime.Today)).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-    return await table.QueryAsync<Newsletter>(o => o.PartitionKey == domain && o.RowKey.CompareTo(today) >= 0).ToListAsync();
+    return await table.QueryAsync<Newsletter>(o => o.PartitionKey == storagePartitionKey && o.RowKey.CompareTo(today) >= 0).ToListAsync();
   }
 
   public async Task CreateNewsletterAsync(Newsletter newsletter)
   {
+    ArgumentNullException.ThrowIfNull(newsletter);
+    newsletter.PartitionKey = storagePartitionKey;
     var table = client.GetTableClient("newsletters");
     await table.AddEntityAsync(newsletter);
   }
@@ -81,7 +87,7 @@ public class TableService(string domain)
   public async Task DeleteNewsletterAsync(string date)
   {
     var table = client.GetTableClient("newsletters");
-    await table.DeleteEntityAsync(domain, date);
+    await table.DeleteEntityAsync(storagePartitionKey, date);
   }
 
   public async Task UpdateNewsletterAsync(Newsletter newsletter)
@@ -93,7 +99,7 @@ public class TableService(string domain)
   public async Task<Article> GetArticleAsync(string key)
   {
     var table = client.GetTableClient("articles");
-    var result = await table.GetEntityIfExistsAsync<Article>(domain, key);
+    var result = await table.GetEntityIfExistsAsync<Article>(storagePartitionKey, key);
     return result.HasValue ? result.Value : null;
   }
 
@@ -104,14 +110,16 @@ public class TableService(string domain)
     if (date is null)
     {
       var today = (effectiveDate ?? DateOnly.FromDateTime(DateTime.Today)).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-      return await table.QueryAsync<Article>(o => o.PartitionKey == domain && o.RowKey.CompareTo(today) >= 0).ToListAsync();
+      return await table.QueryAsync<Article>(o => o.PartitionKey == storagePartitionKey && o.RowKey.CompareTo(today) >= 0).ToListAsync();
     }
     var nextDay = DateOnly.ParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture).AddDays(1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-    return await table.QueryAsync<Article>(o => o.PartitionKey == domain && o.RowKey.CompareTo(date) >= 0 && o.RowKey.CompareTo(nextDay) < 0).ToListAsync();
+    return await table.QueryAsync<Article>(o => o.PartitionKey == storagePartitionKey && o.RowKey.CompareTo(date) >= 0 && o.RowKey.CompareTo(nextDay) < 0).ToListAsync();
   }
 
   public async Task CreateArticleAsync(Article article)
   {
+    ArgumentNullException.ThrowIfNull(article);
+    article.PartitionKey = storagePartitionKey;
     var table = client.GetTableClient("articles");
     await table.AddEntityAsync(article);
   }
@@ -119,7 +127,7 @@ public class TableService(string domain)
   public async Task DeleteArticleAsync(string key)
   {
     var table = client.GetTableClient("articles");
-    await table.DeleteEntityAsync(domain, key);
+    await table.DeleteEntityAsync(storagePartitionKey, key);
   }
 
   public async Task UpdateArticleAsync(Article article)
@@ -133,13 +141,13 @@ public class TableService(string domain)
   public async Task<List<StoredImageHash>> ListImageHashesAsync()
   {
     var table = client.GetTableClient("imagehashes");
-    return await table.QueryAsync<StoredImageHash>(o => o.PartitionKey == domain, select: ["RowKey", "Sha256", "PerceptualHash"]).ToListAsync();
+    return await table.QueryAsync<StoredImageHash>(o => o.PartitionKey == storagePartitionKey, select: ["RowKey", "Sha256", "PerceptualHash"]).ToListAsync();
   }
 
   public async Task UpsertImageHashAsync(StoredImageHash imageHash)
   {
     ArgumentNullException.ThrowIfNull(imageHash);
-    imageHash.PartitionKey = domain;
+    imageHash.PartitionKey = storagePartitionKey;
     var table = client.GetTableClient("imagehashes");
     await table.UpsertEntityAsync(imageHash, TableUpdateMode.Replace);
   }
@@ -149,7 +157,7 @@ public class TableService(string domain)
     var table = client.GetTableClient("imagehashes");
     try
     {
-      await table.DeleteEntityAsync(domain, imageName, ETag.All);
+      await table.DeleteEntityAsync(storagePartitionKey, imageName, ETag.All);
     }
     catch (RequestFailedException ex) when (ex.Status == 404)
     {
@@ -159,7 +167,7 @@ public class TableService(string domain)
   public async Task<CalendarEvent> GetEventAsync(string key)
   {
     var table = client.GetTableClient("events");
-    var result = await table.GetEntityIfExistsAsync<CalendarEvent>(domain, key);
+    var result = await table.GetEntityIfExistsAsync<CalendarEvent>(storagePartitionKey, key);
     return result.HasValue ? result.Value : null;
   }
 
@@ -169,12 +177,14 @@ public class TableService(string domain)
     var todayDate = effectiveDate ?? DateOnly.FromDateTime(DateTime.Today);
     var twoWeeksAgo = todayDate.AddDays(-14).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     var today = todayDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-    return (await table.QueryAsync<CalendarEvent>(o => o.PartitionKey == domain && o.RowKey.CompareTo(twoWeeksAgo) >= 0).ToListAsync())
+    return (await table.QueryAsync<CalendarEvent>(o => o.PartitionKey == storagePartitionKey && o.RowKey.CompareTo(twoWeeksAgo) >= 0).ToListAsync())
       .Where(o => string.CompareOrdinal(o.EndDate, today) > 0).ToList();
   }
 
   public async Task CreateEventAsync(CalendarEvent ev)
   {
+    ArgumentNullException.ThrowIfNull(ev);
+    ev.PartitionKey = storagePartitionKey;
     var table = client.GetTableClient("events");
     await table.AddEntityAsync(ev);
   }
@@ -182,23 +192,23 @@ public class TableService(string domain)
   public async Task ApproveEventAsync(string key)
   {
     var table = client.GetTableClient("events");
-    await table.UpdateEntityAsync(new CalendarEvent { PartitionKey = domain, RowKey = key, IsApproved = true }, ETag.All, TableUpdateMode.Merge);
+    await table.UpdateEntityAsync(new CalendarEvent { PartitionKey = storagePartitionKey, RowKey = key, IsApproved = true }, ETag.All, TableUpdateMode.Merge);
   }
 
   public async Task DeleteEventAsync(string key)
   {
     var table = client.GetTableClient("events");
-    await table.DeleteEntityAsync(domain, key);
+    await table.DeleteEntityAsync(storagePartitionKey, key);
   }
 
   public async Task MoveArticleAsync(string originalArticleKey, Article newArticle, Newsletter source, Newsletter dest)
   {
     ArgumentNullException.ThrowIfNull(newArticle);
     var articlesTable = client.GetTableClient("articles");
-    newArticle.PartitionKey = domain;
+    newArticle.PartitionKey = storagePartitionKey;
     var articlesBatch = new List<TableTransactionAction>() {
       new(TableTransactionActionType.Add, newArticle),
-      new(TableTransactionActionType.Delete, new Article { PartitionKey = domain, RowKey = originalArticleKey }, ETag.All)
+      new(TableTransactionActionType.Delete, new Article { PartitionKey = storagePartitionKey, RowKey = originalArticleKey }, ETag.All)
     };
     await articlesTable.SubmitTransactionAsync(articlesBatch);
 
@@ -213,13 +223,13 @@ public class TableService(string domain)
   public async Task<int> CountRecipientsAsync()
   {
     var table = client.GetTableClient("recipients");
-    return await table.QueryAsync<Recipient>(o => o.PartitionKey == domain, select: selectPartitionKey).CountAsync();
+    return await table.QueryAsync<Recipient>(o => o.PartitionKey == storagePartitionKey, select: selectPartitionKey).CountAsync();
   }
 
   public async Task<IList<string>> ListRecipientsAsync()
   {
     var table = client.GetTableClient("recipients");
-    var result = await table.QueryAsync<Recipient>(o => o.PartitionKey == domain, select: selectRowKey).ToListAsync();
+    var result = await table.QueryAsync<Recipient>(o => o.PartitionKey == storagePartitionKey, select: selectRowKey).ToListAsync();
     return result.Select(o => o.RowKey).ToList();
   }
 
@@ -228,18 +238,18 @@ public class TableService(string domain)
     ArgumentNullException.ThrowIfNull(recipients);
     recipients = recipients.Select(o => o.Trim().ToLowerInvariant()).Where(o => o.Contains('@', StringComparison.OrdinalIgnoreCase)).Distinct().ToList();
     var table = client.GetTableClient("recipients");
-    var existing = await table.QueryAsync<Recipient>(o => o.PartitionKey == domain).ToListAsync();
+    var existing = await table.QueryAsync<Recipient>(o => o.PartitionKey == storagePartitionKey).ToListAsync();
     var existingHashSet = new HashSet<string>(existing.Select(o => o.RowKey), StringComparer.OrdinalIgnoreCase);
     var newHashSet = new HashSet<string>(recipients, StringComparer.OrdinalIgnoreCase);
 
     var allOperations = new List<TableTransactionAction>();
     foreach (var newRecipient in recipients.Where(o => !existingHashSet.Contains(o)))
     {
-      allOperations.Add(new TableTransactionAction(TableTransactionActionType.Add, new Recipient { PartitionKey = domain, RowKey = newRecipient }));
+      allOperations.Add(new TableTransactionAction(TableTransactionActionType.Add, new Recipient { PartitionKey = storagePartitionKey, RowKey = newRecipient }));
     }
     foreach (var existingRecipient in existing.Where(o => !newHashSet.Contains(o.RowKey)))
     {
-      allOperations.Add(new TableTransactionAction(TableTransactionActionType.Delete, new Recipient { PartitionKey = domain, RowKey = existingRecipient.RowKey }, ETag.All));
+      allOperations.Add(new TableTransactionAction(TableTransactionActionType.Delete, new Recipient { PartitionKey = storagePartitionKey, RowKey = existingRecipient.RowKey }, ETag.All));
     }
 
     var batches = allOperations.Select((o, i) => new { Index = i, Value = o }).GroupBy(o => o.Index / 100).Select(o => o.Select(v => v.Value).ToList()).ToList();
@@ -254,14 +264,14 @@ public class TableService(string domain)
   {
     ArgumentNullException.ThrowIfNull(csvUsers);
     var table = client.GetTableClient("users");
-    var existing = await table.QueryAsync<User>(o => o.PartitionKey == domain).ToListAsync();
+    var existing = await table.QueryAsync<User>(o => o.PartitionKey == storagePartitionKey).ToListAsync();
     var existingHashSet = new HashSet<string>(existing.Select(o => $"{o.RowKey},{o.FirstName},{o.DisplayName}"), StringComparer.OrdinalIgnoreCase);
     var newHashSet = new HashSet<string>(csvUsers, StringComparer.OrdinalIgnoreCase);
 
     var deleteOperations = new List<TableTransactionAction>();
     foreach (var existingUser in existingHashSet.Where(o => !newHashSet.Contains(o)))
     {
-      deleteOperations.Add(new TableTransactionAction(TableTransactionActionType.Delete, new User { PartitionKey = domain, RowKey = existingUser.Split(',')[0] }, ETag.All));
+      deleteOperations.Add(new TableTransactionAction(TableTransactionActionType.Delete, new User { PartitionKey = storagePartitionKey, RowKey = existingUser.Split(',')[0] }, ETag.All));
     }
 
     var insertOperations = new List<TableTransactionAction>();
@@ -270,7 +280,7 @@ public class TableService(string domain)
       var parts = newUser.Split(',');
       insertOperations.Add(new TableTransactionAction(TableTransactionActionType.Add, new User
       {
-        PartitionKey = domain,
+        PartitionKey = storagePartitionKey,
         RowKey = parts[0],
         FirstName = parts[1],
         DisplayName = parts[2],

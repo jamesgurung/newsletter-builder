@@ -83,6 +83,7 @@ public static class AIService
       EndUserId = identifier
     };
     options.InputItems.Add(userMessage);
+    options.Patch.Set("$.prompt_cache_options.mode"u8, "explicit");
 
     var response = await _client.CreateResponseAsync(options);
     var json = response.Value.OutputItems.Select(o => o as MessageResponseItem).First(o => o is not null).Content.First().Text;
@@ -151,6 +152,7 @@ public static class AIService
 
     options.InputItems.Add(ResponseItem.CreateAssistantMessageItem(spagBuilder.ToString()));
     options.InputItems.Add(ResponseItem.CreateUserMessageItem(stylePrompt));
+    options.Patch.Set("$.prompt_cache_options.mode"u8, "explicit");
     var styleStreamingResult = _client.CreateResponseStreamingAsync(options);
 
     await foreach (var update in styleStreamingResult)
@@ -185,8 +187,9 @@ public static class AIService
       TextOptions = new ResponseTextOptions { TextFormat = ResponseTextFormat.CreateJsonSchemaFormat("article", writeArticleSchema, jsonSchemaIsStrict: true) },
       EndUserId = identifier
     };
-
     options.InputItems.Add(userMessage);
+    options.Patch.Set("$.prompt_cache_options.mode"u8, "explicit");
+
     var response = await _client.CreateResponseAsync(options);
     var json = response.Value.OutputItems.Select(o => o as MessageResponseItem).First(o => o is not null).Content.First().Text;
     return JsonSerializer.Deserialize<AIArticleResponse>(json);

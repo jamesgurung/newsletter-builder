@@ -4,7 +4,7 @@ using System.Globalization;
 
 namespace NewsletterBuilder.Pages;
 
-public class PublishPageModel() : PageModel
+public class PublishPageModel(AppSettings appSettings) : PageModel
 {
   public string NewsletterKey { get; set; }
   public bool IsPublished { get; set; }
@@ -18,8 +18,7 @@ public class PublishPageModel() : PageModel
   {
     if (!User.IsInRole(Roles.Editor)) return Forbid();
     NewsletterKey = date;
-    var domain = User.GetDomain();
-    var tableService = new TableService(domain);
+    var tableService = new TableService();
     var newsletter = await tableService.GetNewsletterAsync(date);
     if (newsletter is null) return NotFound();
     IsTimeToSend = newsletter.IsTimeToSend();
@@ -32,7 +31,7 @@ public class PublishPageModel() : PageModel
     if (Description is null)
     {
       var textInfo = CultureInfo.InvariantCulture.TextInfo;
-      var unlisted = Organisation.ByDomain[domain].UnlistedArticles ?? [];
+      var unlisted = appSettings.UnlistedArticles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
       var articleTitles = newsletter.ArticleOrder.Split(',')
         .Where(o => !unlisted.Contains(o, StringComparer.OrdinalIgnoreCase))
         .Select(o => articles.FirstOrDefault(a => a.ShortName == o)?.Title).Where(o => o is not null).ToList();

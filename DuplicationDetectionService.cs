@@ -47,7 +47,7 @@ public class DuplicationDetectionService(TableService tableService)
 
   private async Task<ConcurrentDictionary<string, StoredImageHash>> GetImageHashCacheAsync()
   {
-    var cache = imageHashCaches.GetOrAdd(tableService.Domain, _ => new(async () =>
+    var cache = imageHashCaches.GetOrAdd(tableService.StoragePartitionKey, _ => new(async () =>
     {
       var hashes = await tableService.ListImageHashesAsync();
       return new ConcurrentDictionary<string, StoredImageHash>(hashes.ToDictionary(o => o.RowKey));
@@ -59,14 +59,14 @@ public class DuplicationDetectionService(TableService tableService)
     }
     catch
     {
-      RemoveImageHashCache(tableService.Domain, cache);
+      RemoveImageHashCache(tableService.StoragePartitionKey, cache);
       throw;
     }
   }
 
   private async Task UpdateImageHashCacheAsync(Action<ConcurrentDictionary<string, StoredImageHash>> update)
   {
-    if (!imageHashCaches.TryGetValue(tableService.Domain, out var cache) || !cache.IsValueCreated) return;
+    if (!imageHashCaches.TryGetValue(tableService.StoragePartitionKey, out var cache) || !cache.IsValueCreated) return;
 
     ConcurrentDictionary<string, StoredImageHash> hashes;
     try
@@ -75,7 +75,7 @@ public class DuplicationDetectionService(TableService tableService)
     }
     catch
     {
-      RemoveImageHashCache(tableService.Domain, cache);
+      RemoveImageHashCache(tableService.StoragePartitionKey, cache);
       return;
     }
     update(hashes);

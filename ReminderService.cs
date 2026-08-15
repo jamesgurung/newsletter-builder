@@ -3,14 +3,14 @@ using System.Runtime.InteropServices;
 
 namespace NewsletterBuilder;
 
-public class ReminderService(ILogger<ReminderService> logger) : BackgroundService
+public class ReminderService(ILogger<ReminderService> logger, AppSettings appSettings) : BackgroundService
 {
   private static readonly TimeZoneInfo _ukTimeZone = TimeZoneInfo.FindSystemTimeZoneById(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "GMT Standard Time" : "Europe/London");
-  private List<(string Domain, Reminder Reminder)> _reminders;
+  private List<Reminder> _reminders;
 
   protected override async Task ExecuteAsync(CancellationToken stoppingToken)
   {
-    _reminders = Organisation.ByDomain.Values.SelectMany(o => o.Reminders.Select(r => (o.Domain, r))).ToList();
+    _reminders = appSettings.Reminders.ToList();
     if (_reminders.Count == 0)
     {
       logger.LogInformation("No reminders configured.");
@@ -20,27 +20,27 @@ public class ReminderService(ILogger<ReminderService> logger) : BackgroundServic
     while (!stoppingToken.IsCancellationRequested)
     {
       CalculateNextRuns();
-      var utcNext = _reminders.Min(o => o.Reminder.NextRunUtc);
+      var utcNext = _reminders.Min(o => o.NextRunUtc);
       var delay = utcNext - DateTime.UtcNow;
       if (delay < TimeSpan.Zero) delay = TimeSpan.Zero;
       await Task.Delay(delay, stoppingToken);
-      var remindersToRun = _reminders.Where(o => o.Reminder.NextRunUtc <= DateTime.UtcNow.AddSeconds(1)).ToList();
+      var remindersToRun = _reminders.Where(o => o.NextRunUtc <= DateTime.UtcNow.AddSeconds(1)).ToList();
       foreach (var reminder in remindersToRun)
       {
         try
         {
-          if (await RunReminderAsync(reminder.Domain, reminder.Reminder))
+          if (await RunReminderAsync(reminder))
           {
-            logger.LogInformation("Sent reminders for {Domain}/-{Days}d/{Time}", reminder.Domain, reminder.Reminder.DaysBeforeDeadline, reminder.Reminder.Time);
+            logger.LogInformation("Sent reminders for -{Days}d/{Time}", reminder.DaysBeforeDeadline, reminder.Time);
           }
           else
           {
-            logger.LogInformation("No reminders to send for {Domain}/-{Days}d/{Time}", reminder.Domain, reminder.Reminder.DaysBeforeDeadline, reminder.Reminder.Time);
+            logger.LogInformation("No reminders to send for -{Days}d/{Time}", reminder.DaysBeforeDeadline, reminder.Time);
           }
         }
         catch (Exception e)
         {
-          logger.LogError("Reminders failed for {Domain}/-{Days}d/{Time}: {Error}", reminder.Domain, reminder.Reminder.DaysBeforeDeadline, reminder.Reminder.Time, e.Message);
+          logger.LogError("Reminders failed for -{Days}d/{Time}: {Error}", reminder.DaysBeforeDeadline, reminder.Time, e.Message);
         }
       }
     }
@@ -48,22 +48,20 @@ public class ReminderService(ILogger<ReminderService> logger) : BackgroundServic
 
   private void CalculateNextRuns()
   {
-    foreach (var (_, reminder) in _reminders)
+    foreach (var reminder in _reminders)
     {
       reminder.CalculateNextRun(_ukTimeZone);
     }
   }
 
-  private static async Task<bool> RunReminderAsync(string domain, Reminder reminder)
+  private async Task<bool> RunReminderAsync(Reminder reminder)
   {
-    var thisOrganisation = Organisation.ByDomain[domain];
-
     var now = TimeZoneInfo.ConvertTime(DateTime.UtcNow, TimeZoneInfo.Utc, _ukTimeZone);
     if (now.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) throw new InvalidOperationException("Cannot send emails at the weekend.");
 
     var newsletterDeadline = now.AddDays(reminder.DaysBeforeDeadline).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-    var service = new TableService(domain);
+    var service = new TableService();
     var newsletter = (await service.ListNewslettersAsync()).SingleOrDefault(o => o.Deadline == newsletterDeadline);
     if (newsletter is null) return false;
     var articles = (await service.ListArticlesAsync(newsletter.RowKey)).Where(o => !o.IsSubmitted && o.Title != "Intro").ToList();
@@ -86,11 +84,11 @@ public class ReminderService(ILogger<ReminderService> logger) : BackgroundServic
         (string.IsNullOrEmpty(article.Content) ? string.Empty : "It looks like you have made a start on this article, but it has not yet been submitted.<br /><br />") +
         $"Article: <b>{article.Title}</b><br />" +
         $"Deadline: <b>{now.AddDays(reminder.DaysBeforeDeadline):dddd d MMMM}</b><br /><br />" +
-        $"<a href=\"{Organisation.NewsletterEditorUrl}/{article.RowKey.Replace('_', '/')}\" style=\"text-decoration: none; color: #1379CE\">" +
+        $"<a href=\"{appSettings.NewsletterEditorUrl}/{article.RowKey.Replace('_', '/')}\" style=\"text-decoration: none; color: #1379CE\">" +
         "<b>Click here to submit your article and photos</b></a><br /><br />" +
-        $"Many thanks<br /><br />{thisOrganisation.Name}<br /></body></html>";
+        $"Many thanks<br /><br />{appSettings.OrganisationName}<br /></body></html>";
 
-      mailer.Enqueue(contributorEmails, reminder.Subject, thisOrganisation.FromEmail, thisOrganisation.ReminderReplyTo, false, body);
+      mailer.Enqueue(contributorEmails, reminder.Subject, appSettings.FromEmail, appSettings.ReminderReplyTo, false, body);
     }
 
     await mailer.SendAsync();

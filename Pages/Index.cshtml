@@ -5,7 +5,7 @@
   var username = User.GetUsername();
   var isEditor = User.IsInRole(Roles.Editor);
   var isAdmin = User.IsInRole(Roles.Admin);
-  var service = new TableService(User.GetDomain());
+  var service = new TableService();
   var events = await service.ListEventsAsync(today);
   var newsletterStartDate = isEditor ? today.AddMonths(-3).AddDays(1) : today;
   var newsletters = await service.ListNewslettersAsync(newsletterStartDate);
@@ -21,7 +21,6 @@
   var recipientCount = isAdmin ? await service.CountRecipientsAsync() : 0;
   var nextDate = upcomingNewsletters.Any() ? DateOnly.ParseExact(upcomingNewsletters.Last().RowKey, "yyyy-MM-dd").AddDays(7) : today;
   if (nextDate < today) nextDate = today;
-  var thisOrganisation = Organisation.ByDomain[User.GetDomain()];
 }
 <nav class="index-tabs" aria-label="Dashboard sections" role="tablist">
   <button id="newsletters-tab" type="button" role="tab" aria-label="Upcoming Newsletters" aria-controls="newsletters-panel" aria-selected="true">Upcoming <span class="newsletter-tab-suffix">Newsletters</span></button>
@@ -91,7 +90,7 @@
         <label class="index-field-label" for="newsletterdate">Publish date</label>
         <input id="newsletterdate" type="date" value="@nextDate.ToString("yyyy-MM-dd")" />
         <label class="index-field-label" for="newsletterdeadline">Deadline</label>
-        <input id="newsletterdeadline" type="date" value="@nextDate.AddDays(-thisOrganisation.DefaultDeadlineDaysBeforePublish).ToString("yyyy-MM-dd")" />
+        <input id="newsletterdeadline" type="date" value="@nextDate.AddDays(-AppSettings.DefaultDeadlineDaysBeforePublish).ToString("yyyy-MM-dd")" />
         <a id="addnewsletter">Add newsletter</a>
       </li>
     }
@@ -182,7 +181,7 @@
     @:const usernames = [@Html.Raw(string.Join(',', users.Select(o => $"\"{o.RowKey}\"")))];
     }
     @if (isEditor) {
-    @:const defaultDeadlineOffset = @thisOrganisation.DefaultDeadlineDaysBeforePublish;
+    @:const defaultDeadlineOffset = @AppSettings.DefaultDeadlineDaysBeforePublish;
     }
   </script>
   <script src="/js/shared.js" asp-append-version="true"></script>

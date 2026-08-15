@@ -9,26 +9,28 @@ using System.Text.Json;
 
 namespace NewsletterBuilder;
 
-public class BlobService(string domain)
+public class BlobService
 {
-  public static void Configure(string connectionString, string accountKey)
+  public static void Configure(string connectionString, string accountKey, string prefix)
   {
     client = new BlobServiceClient(connectionString);
     credential = new StorageSharedKeyCredential(client.AccountName, accountKey);
-    Uri = client.Uri.ToString();
+    storagePrefix = prefix;
+    PhotosUri = $"{client.Uri}photos/{storagePrefix}/";
   }
 
-  public static string Uri { get; private set; }
+  public static string PhotosUri { get; private set; }
 
   private static BlobServiceClient client;
   private static StorageSharedKeyCredential credential;
+  private static string storagePrefix;
   private static readonly JsonSerializerOptions jsonOptions = new() { WriteIndented = true };
 
   public async Task UploadImageAsync(string articleKey, string imageName, Stream stream)
   {
     ArgumentNullException.ThrowIfNull(imageName);
     var container = client.GetBlobContainerClient("photos");
-    var blobName = $"{domain}/{articleKey}/{imageName}";
+    var blobName = $"{storagePrefix}/{articleKey}/{imageName}";
     var blob = container.GetBlockBlobClient(blobName);
     var contentType = imageName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ? "image/jpeg" : "image/png";
     var options = new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } };
@@ -38,14 +40,14 @@ public class BlobService(string domain)
   public async Task<bool> DeleteImageAsync(string articleKey, string imageName)
   {
     var container = client.GetBlobContainerClient("photos");
-    var blobName = $"{domain}/{articleKey}/{imageName}";
+    var blobName = $"{storagePrefix}/{articleKey}/{imageName}";
     return (await container.DeleteBlobIfExistsAsync(blobName, DeleteSnapshotsOption.IncludeSnapshots)).Value;
   }
 
   public async Task<List<string>> DeleteArticleImagesAsync(string articleKey)
   {
     var container = client.GetBlobContainerClient("photos");
-    var getBlobsOptions = new GetBlobsOptions { Prefix = $"{domain}/{articleKey}/" };
+    var getBlobsOptions = new GetBlobsOptions { Prefix = $"{storagePrefix}/{articleKey}/" };
     var imageNames = new List<string>();
     await foreach (var item in container.GetBlobsAsync(getBlobsOptions))
     {
@@ -58,12 +60,12 @@ public class BlobService(string domain)
   public async Task MoveImagesAsync(string oldArticleKey, string newArticleKey)
   {
     var container = client.GetBlobContainerClient("photos");
-    var getBlobsOptions = new GetBlobsOptions { Prefix = $"{domain}/{oldArticleKey}/" };
+    var getBlobsOptions = new GetBlobsOptions { Prefix = $"{storagePrefix}/{oldArticleKey}/" };
     await foreach (var item in container.GetBlobsAsync(getBlobsOptions))
     {
       var source = container.GetBlockBlobClient(item.Name);
       var imageName = item.Name.Split('/').Last();
-      var dest = container.GetBlockBlobClient($"{domain}/{newArticleKey}/{imageName}");
+      var dest = container.GetBlockBlobClient($"{storagePrefix}/{newArticleKey}/{imageName}");
       var resp = await dest.SyncCopyFromUriAsync(new Uri($"{source.Uri}?{GetSasQueryString()}"));
       if (resp.Value.CopyStatus == CopyStatus.Success)
       {
@@ -91,7 +93,7 @@ public class BlobService(string domain)
     var builder = new BlobSasBuilder()
     {
       BlobContainerName = "photos",
-      BlobName = $"{domain}/{articleKey}/{imageName}",
+      BlobName = $"{storagePrefix}/{articleKey}/{imageName}",
       Resource = "b",
       StartsOn = DateTime.UtcNow.AddMinutes(-2),
       ExpiresOn = DateTime.UtcNow.AddMinutes(5),
@@ -104,14 +106,14 @@ public class BlobService(string domain)
   public async Task<bool> ImageExistsAsync(string articleKey, string imageName)
   {
     var container = client.GetBlobContainerClient("photos");
-    var blobName = $"{domain}/{articleKey}/{imageName}";
+    var blobName = $"{storagePrefix}/{articleKey}/{imageName}";
     return await container.GetBlobClient(blobName).ExistsAsync();
   }
 
   public async Task<byte[]> DownloadImageAsync(string articleKey, string imageName)
   {
     var container = client.GetBlobContainerClient("photos");
-    var blobName = $"{domain}/{articleKey}/{imageName}";
+    var blobName = $"{storagePrefix}/{articleKey}/{imageName}";
     var response = await container.GetBlobClient(blobName).DownloadContentAsync();
     return response.Value.Content.ToArray();
   }
@@ -124,7 +126,7 @@ public class BlobService(string domain)
     var sourceContainer = client.GetBlobContainerClient("photos");
     var destContainer = client.GetBlobContainerClient("$web");
     var articleKeyParts = articleKey.Split('_');
-    var getBlobsOptions = new GetBlobsOptions { Prefix = $"{domain}/{articleKey}/" };
+    var getBlobsOptions = new GetBlobsOptions { Prefix = $"{storagePrefix}/{articleKey}/" };
     await foreach (var item in sourceContainer.GetBlobsAsync(getBlobsOptions))
     {
       if (!item.Name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) && !item.Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase))

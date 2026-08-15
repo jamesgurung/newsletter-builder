@@ -7,21 +7,21 @@ using NewsletterBuilder.Pages;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace NewsletterBuilder;
 
-public static class Api
+public static partial class Api
 {
-  public static void MapApiPaths(this WebApplication app)
+  public static void MapApiPaths(this WebApplication app, AppSettings appSettings)
   {
     app.MapGet("/api/newsletters/{key}/images", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context) =>
     {
-      var domain = context.User.GetDomain();
-      var tableService = new TableService(domain);
+      var tableService = new TableService();
       var articles = await tableService.ListArticlesAsync(key);
       if (articles.Count == 0) return Results.NotFound("Newsletter not found.");
 
-      var blobService = new BlobService(domain);
+      var blobService = new BlobService();
       var sas = blobService.GetSasQueryString();
 
       var articleContents = articles.Where(o => o.Content is not null)
@@ -32,7 +32,7 @@ public static class Api
         RenderPageModel.AddImageRenderNames(article.Name, article.Content.Sections);
       }
 
-      var blobBaseUrl = $"{BlobService.Uri}photos/{domain}";
+      var blobBaseUrl = BlobService.PhotosUri.TrimEnd('/');
 
       return Results.Ok(articleContents.SelectMany(a => a.Content.Sections.Select(s => new { Key = a.Name, Section = s })
       .Where(o => o.Section.Image is not null).Select(o => new ArticleImageData
@@ -52,11 +52,9 @@ public static class Api
       if (string.IsNullOrEmpty(user.RowKey)) return Results.BadRequest("Invalid username.");
       if (string.IsNullOrEmpty(user.DisplayName)) return Results.BadRequest("Invalid display name.");
       if (string.IsNullOrEmpty(user.FirstName)) return Results.BadRequest("Invalid first name.");
-      var domain = context.User.GetDomain();
-      user.PartitionKey = domain;
       user.IsEditor = false;
       user.IsAdmin = false;
-      var service = new TableService(domain);
+      var service = new TableService();
       try
       {
         await service.CreateUserAsync(user);
@@ -70,8 +68,7 @@ public static class Api
 
     group.MapDelete("/users/{username}", [Authorize(Roles = Roles.Admin)] async (string username, HttpContext context) =>
     {
-      var domain = context.User.GetDomain();
-      var service = new TableService(domain);
+      var service = new TableService();
       await service.DeleteUserAsync(username);
       return Results.Ok();
     });
@@ -85,11 +82,9 @@ public static class Api
       if (!DateOnly.TryParseExact(parts[0], "yyyy-MM-dd", out _)) return Results.BadRequest("Invalid start date.");
       if (!DateOnly.TryParseExact(parts[1], "yyyy-MM-dd", out _)) return Results.BadRequest("Invalid end date.");
       if (string.IsNullOrWhiteSpace(parts[2])) return Results.BadRequest("Invalid title.");
-      var domain = context.User.GetDomain();
-      ev.PartitionKey = domain;
       ev.Owner = context.User.GetUsername();
       ev.IsApproved = context.User.IsInRole(Roles.Editor);
-      var service = new TableService(domain);
+      var service = new TableService();
       try
       {
         await service.CreateEventAsync(ev);
@@ -103,16 +98,14 @@ public static class Api
 
     group.MapPost("/events/{key}/approve", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context) =>
     {
-      var domain = context.User.GetDomain();
-      var service = new TableService(domain);
+      var service = new TableService();
       await service.ApproveEventAsync(key);
       return Results.Ok();
     });
 
     group.MapDelete("/events/{key}", async (string key, HttpContext context) =>
     {
-      var domain = context.User.GetDomain();
-      var service = new TableService(domain);
+      var service = new TableService();
       if (!context.User.IsInRole(Roles.Editor))
       {
         var ev = await service.GetEventAsync(key);
@@ -129,9 +122,7 @@ public static class Api
     {
       if (!DateOnly.TryParseExact(newsletter.RowKey, "yyyy-MM-dd", out _)) return Results.BadRequest("Invalid newsletter date.");
       if (!DateOnly.TryParseExact(newsletter.Deadline, "yyyy-MM-dd", out _)) return Results.BadRequest("Invalid deadline.");
-      var domain = context.User.GetDomain();
-      newsletter.PartitionKey = domain;
-      var service = new TableService(domain);
+      var service = new TableService();
       try
       {
         await service.CreateNewsletterAsync(newsletter);
@@ -141,14 +132,13 @@ public static class Api
         return Results.Conflict("Newsletter already exists.");
       }
       var username = context.User.GetUsername();
-      await service.CreateArticleAsync(new Article { PartitionKey = domain, RowKey = $"{newsletter.RowKey}_intro", Title = "Intro", Owner = username, Contributors = username });
+      await service.CreateArticleAsync(new Article { RowKey = $"{newsletter.RowKey}_intro", Title = "Intro", Owner = username, Contributors = username });
       return Results.Ok();
     });
 
     group.MapDelete("/newsletters/{key}", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context) =>
     {
-      var domain = context.User.GetDomain();
-      var service = new TableService(domain);
+      var service = new TableService();
       var articles = await service.ListArticlesAsync(key);
       if (articles.Count > 1) return Results.Conflict("Cannot delete newsletter which contains articles.");
       await service.DeleteArticleAsync($"{key}_intro");
@@ -161,11 +151,9 @@ public static class Api
       article.RowKey = article.RowKey?.Trim().ToLowerInvariant();
       if (string.IsNullOrEmpty(article.RowKey)) return Results.BadRequest("Invalid article key.");
       if (!DateOnly.TryParseExact(article.Date, "yyyy-MM-dd", out _)) return Results.BadRequest("Invalid article date.");
-      var domain = context.User.GetDomain();
-      article.PartitionKey = domain;
       article.Owner = context.User.GetUsername();
       article.IsSubmitted = false;
-      var service = new TableService(domain);
+      var service = new TableService();
       if (context.User.IsInRole(Roles.Editor))
       {
         if (string.IsNullOrWhiteSpace(article.Contributors)) return Results.BadRequest("Contributors required.");
@@ -199,13 +187,12 @@ public static class Api
     group.MapPut("/articles/{key}/metadata", [Authorize(Roles = Roles.Editor)] async (string key, ArticleMetadataData metadata, HttpContext context) =>
     {
       if (metadata is null) return Results.BadRequest("No metadata submitted.");
-      var title = System.Text.RegularExpressions.Regex.Replace(metadata.Title?.Trim() ?? "", @"\s+", " ");
-      if (string.IsNullOrEmpty(title) || !System.Text.RegularExpressions.Regex.IsMatch(title, @"^[a-z0-9A-Z' \-:&]+$")) return Results.BadRequest("Invalid article title.");
+      var title = WhitespaceRegex().Replace(metadata.Title?.Trim() ?? "", " ");
+      if (string.IsNullOrEmpty(title) || !ArticleTitleRegex().IsMatch(title)) return Results.BadRequest("Invalid article title.");
       var contributors = (metadata.Contributors ?? "").Split(',').Select(o => o.Trim().ToLowerInvariant()).ToList();
       if (contributors.Any(string.IsNullOrEmpty)) return Results.BadRequest("Contributors required.");
 
-      var domain = context.User.GetDomain();
-      var service = new TableService(domain);
+      var service = new TableService();
       var article = await service.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (article.ETag.ToString() != metadata.ETag) return Results.Conflict("Article has been modified by another user.");
@@ -223,8 +210,7 @@ public static class Api
 
     group.MapDelete("/articles/{key}", async (string key, [FromQuery] string order, HttpContext context) =>
     {
-      var domain = context.User.GetDomain();
-      var tableService = new TableService(domain);
+      var tableService = new TableService();
       if (!context.User.IsInRole(Roles.Editor))
       {
         var article = await tableService.GetArticleAsync(key);
@@ -242,7 +228,7 @@ public static class Api
       newsletter.LastPublished = null;
       await tableService.UpdateNewsletterAsync(newsletter);
 
-      var blobService = new BlobService(domain);
+      var blobService = new BlobService();
       var imageNames = await blobService.DeleteArticleImagesAsync(key);
       var duplicationDetectionService = new DuplicationDetectionService(tableService);
       foreach (var imageName in imageNames)
@@ -252,8 +238,7 @@ public static class Api
 
     group.MapPut("/newsletters/{key}/order", [Authorize(Roles = Roles.Editor)] async (string key, ArticleOrderData orderData, HttpContext context) =>
     {
-      var domain = context.User.GetDomain();
-      var tableService = new TableService(domain);
+      var tableService = new TableService();
       if (!await ValidateOrderAsync(tableService, key, orderData.Order)) return Results.BadRequest("Invalid article order.");
 
       var newsletter = await tableService.GetNewsletterAsync(key);
@@ -266,11 +251,10 @@ public static class Api
 
     group.MapPut("/newsletters/{key}/coverphoto", [Authorize(Roles = Roles.Editor)] async (string key, CoverPhotoData coverPhotoData, HttpContext context) =>
     {
-      var domain = context.User.GetDomain();
-      var tableService = new TableService(domain);
+      var tableService = new TableService();
       var newsletter = await tableService.GetNewsletterAsync(key);
       if (newsletter is null) return Results.NotFound("Newsletter not found.");
-      var blobService = new BlobService(domain);
+      var blobService = new BlobService();
       if (!await blobService.ImageExistsAsync(coverPhotoData.ArticleKey, coverPhotoData.ImageName)) return Results.BadRequest("Invalid image.");
       newsletter.CoverPhoto = coverPhotoData.ImageName;
       newsletter.LastPublished = null;
@@ -280,8 +264,7 @@ public static class Api
 
     group.MapPost("/articles/{key}/move", [Authorize(Roles = Roles.Editor)] async (string key, ArticleMoveData moveData, HttpContext context) =>
     {
-      var domain = context.User.GetDomain();
-      var tableService = new TableService(domain);
+      var tableService = new TableService();
       var article = await tableService.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       var source = await tableService.GetNewsletterAsync(key[..10]);
@@ -298,7 +281,7 @@ public static class Api
       dest.LastPublished = null;
       await tableService.MoveArticleAsync(key, article, source, dest);
 
-      var blobService = new BlobService(domain);
+      var blobService = new BlobService();
       await blobService.MoveImagesAsync(key, article.RowKey);
       return Results.Ok();
     });
@@ -306,8 +289,7 @@ public static class Api
     group.MapPut("/articles/{key}/content", async (string key, ArticleContentData contentData, HttpContext context) =>
     {
       if (contentData?.Sections is null) return Results.BadRequest("No content submitted.");
-      var domain = context.User.GetDomain();
-      var service = new TableService(domain);
+      var service = new TableService();
       var article = await service.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (article.ETag.ToString() != contentData.ETag)
@@ -332,12 +314,11 @@ public static class Api
       if (context.Request.ContentLength == 0) return Results.BadRequest("No image submitted.");
       var contentType = context.Request.ContentType;
       if (contentType is not "image/jpeg" and not "image/png") return Results.BadRequest("Only JPG and PNG images are supported.");
-      var domain = context.User.GetDomain();
-      var tableService = new TableService(domain);
+      var tableService = new TableService();
       var article = await tableService.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (!context.User.IsInRole(Roles.Editor) && (!article.ContributorList.Contains(context.User.GetUsername()) || article.IsSubmitted)) return Results.Forbid();
-      var blobService = new BlobService(domain);
+      var blobService = new BlobService();
       var imageName = Guid.NewGuid().ToString() + (contentType == "image/jpeg" ? ".jpg" : ".png");
       await blobService.UploadImageAsync(key, imageName, context.Request.Body);
       return Results.Ok(imageName);
@@ -345,31 +326,29 @@ public static class Api
 
     group.MapPost("/articles/{key}/image/{imageName}/describe", async (string key, string imageName, HttpContext context) =>
     {
-      var domain = context.User.GetDomain();
-      var tableService = new TableService(domain);
+      var tableService = new TableService();
       var article = await tableService.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (!context.User.IsInRole(Roles.Editor) && (!article.ContributorList.Contains(context.User.GetUsername()) || article.IsSubmitted)) return Results.Forbid();
-      var blobService = new BlobService(domain);
+      var blobService = new BlobService();
       var image = await blobService.DownloadImageAsync(key, imageName);
       var duplicationDetectionService = new DuplicationDetectionService(tableService);
       if (await duplicationDetectionService.CheckAndStoreImageAsync(imageName, image)) return Results.Ok("duplicate");
       var sas = blobService.GetSasQueryString(key, imageName);
-      var imageUrl = $"{BlobService.Uri}photos/{domain}/{key}/{imageName}?{sas}";
+      var imageUrl = $"{BlobService.PhotosUri}{key}/{imageName}?{sas}";
       var description = await AIService.DescribePhotoAsync(new Uri(imageUrl), article.Title, key);
       return Results.Ok(description);
     });
 
     group.MapPost("/articles/{key}/image/{imageName}/duplicate/{replacedImageName}", async (string key, string imageName, string replacedImageName, HttpContext context) =>
     {
-      var domain = context.User.GetDomain();
-      var tableService = new TableService(domain);
+      var tableService = new TableService();
       var article = await tableService.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (!context.User.IsInRole(Roles.Editor) && (!article.ContributorList.Contains(context.User.GetUsername()) || article.IsSubmitted)) return Results.Forbid();
       if (article.Content is null || !JsonSerializer.Deserialize<ArticleContentData>(article.Content).Sections.Any(o => o.Image == replacedImageName)) return Results.BadRequest("Invalid replacement image.");
 
-      var blobService = new BlobService(domain);
+      var blobService = new BlobService();
       var image = await blobService.DownloadImageAsync(key, imageName);
       var duplicationDetectionService = new DuplicationDetectionService(tableService);
       var isDuplicate = await duplicationDetectionService.CheckAndStoreImageAsync(imageName, image, replacedImageName);
@@ -378,12 +357,11 @@ public static class Api
 
     group.MapDelete("/articles/{key}/image/{imageName}", async (string key, string imageName, HttpContext context) =>
     {
-      var domain = context.User.GetDomain();
-      var tableService = new TableService(domain);
+      var tableService = new TableService();
       var article = await tableService.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (!context.User.IsInRole(Roles.Editor) && (!article.ContributorList.Contains(context.User.GetUsername()) || article.IsSubmitted)) return Results.Forbid();
-      var blobService = new BlobService(domain);
+      var blobService = new BlobService();
       if (await blobService.DeleteImageAsync(key, imageName))
         await new DuplicationDetectionService(tableService).DeleteImageHashAsync(imageName);
       return Results.Ok();
@@ -391,8 +369,7 @@ public static class Api
 
     group.MapPost("/articles/{key}/submit", async (string key, HttpContext context, ETagData etagData) =>
     {
-      var domain = context.User.GetDomain();
-      var service = new TableService(domain);
+      var service = new TableService();
       var article = await service.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (!article.ContributorList.Contains(context.User.GetUsername()) && !context.User.IsInRole(Roles.Editor)) return Results.Forbid();
@@ -404,8 +381,7 @@ public static class Api
 
     group.MapPost("/articles/{key}/unsubmit", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context, ETagData etagData) =>
     {
-      var domain = context.User.GetDomain();
-      var service = new TableService(domain);
+      var service = new TableService();
       var article = await service.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (article.ETag.ToString() != etagData.ETag) return Results.Conflict("Article has been modified by another user.");
@@ -416,8 +392,7 @@ public static class Api
 
     group.MapPost("/articles/{key}/approve", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context, ETagData etagData) =>
     {
-      var domain = context.User.GetDomain();
-      var tableService = new TableService(domain);
+      var tableService = new TableService();
       var article = await tableService.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (article.Content is null) return Results.BadRequest("Article content is missing.");
@@ -426,15 +401,14 @@ public static class Api
       article.IsApproved = true;
       await tableService.UpdateArticleAsync(article);
       var imageOrder = JsonSerializer.Deserialize<ArticleContentData>(article.Content).Sections.Where(o => !string.IsNullOrEmpty(o.Image)).Select(o => o.Image).ToList();
-      var blobService = new BlobService(domain);
+      var blobService = new BlobService();
       await blobService.PublishImagesAsync(key, imageOrder);
       return Results.Ok(article.ETag);
     });
 
     group.MapPost("/articles/{key}/unapprove", [Authorize(Roles = Roles.Editor)] async (string key, HttpContext context, ETagData etagData) =>
     {
-      var domain = context.User.GetDomain();
-      var service = new TableService(domain);
+      var service = new TableService();
       var article = await service.GetArticleAsync(key);
       if (article is null) return Results.NotFound("Article not found.");
       if (article.ETag.ToString() != etagData.ETag) return Results.Conflict("Article has been modified by another user.");
@@ -461,8 +435,7 @@ public static class Api
 
     group.MapPost("/recipients", [Authorize(Roles = Roles.Admin)] async (RecipientData recipientsData, HttpContext context) =>
     {
-      var domain = context.User.GetDomain();
-      var service = new TableService(domain);
+      var service = new TableService();
       var suppressed = await Mailer.GetSuppressedRecipientsAsync();
       var recipients = recipientsData.Recipients.Where(o => !suppressed.Contains(o)).ToList();
       await service.ReplaceRecipientsAsync(recipients);
@@ -474,15 +447,14 @@ public static class Api
       if (string.IsNullOrEmpty(key)) return Results.BadRequest("Missing newsletter key.");
       if (string.IsNullOrEmpty(publishData?.Html)) return Results.BadRequest("Missing HTML content.");
       if (string.IsNullOrEmpty(publishData?.Description)) return Results.BadRequest("Missing newsletter description.");
-      var domain = context.User.GetDomain();
-      var tableService = new TableService(domain);
+      var tableService = new TableService();
       var newsletter = await tableService.GetNewsletterAsync(key);
       if (newsletter is null) return Results.NotFound("Newsletter not found.");
       if (string.IsNullOrEmpty(newsletter.CoverPhoto)) return Results.BadRequest("Missing cover photo.");
       var articles = await tableService.ListArticlesAsync(key);
       if (articles.Any(o => !o.IsApproved)) return Results.BadRequest("Not all articles are approved.");
-      var formats = await NewsletterFormatter.FormatAsync(publishData.Html, Organisation.ByDomain[context.User.GetDomain()].TwitterHandle);
-      var blobService = new BlobService(domain);
+      var formats = await NewsletterFormatter.FormatAsync(publishData.Html, appSettings.TwitterHandle);
+      var blobService = new BlobService();
       await blobService.PublishNewsletterAsync(key, formats.WebHtml, formats.EmailHtml, formats.EmailPlainText);
       await blobService.AppendToNewsletterListAsync(new() { Date = key, Description = publishData.Description });
       newsletter.Description = publishData.Description;
@@ -494,8 +466,7 @@ public static class Api
     group.MapPost("/newsletters/{key}/send", [Authorize(Roles = Roles.Editor)] async (string key, SendData sendData, HttpContext context) =>
     {
       if (string.IsNullOrEmpty(key)) return Results.BadRequest("Missing newsletter key.");
-      var domain = context.User.GetDomain();
-      var tableService = new TableService(domain);
+      var tableService = new TableService();
       var newsletter = await tableService.GetNewsletterAsync(key);
       if (newsletter is null) return Results.NotFound("Newsletter not found.");
       if (newsletter.LastPublished is null) return Results.BadRequest("Newsletter has not been published.");
@@ -504,10 +475,9 @@ public static class Api
       if (articles.Any(o => o.Timestamp > newsletter.LastPublished)) return Results.BadRequest("Newsletter has been updated since last publish.");
       var introContent = JsonSerializer.Deserialize<ArticleContentData>(articles.Single(o => o.ShortName == "intro").Content);
       var title = introContent.Headline;
-      var thisOrganisation = Organisation.ByDomain[domain];
       var currentUserEmail = context.User.GetEmail();
 
-      var blobService = new BlobService(domain);
+      var blobService = new BlobService();
       var html = await blobService.ReadTextAsync(key, "email.html");
       var plainText = await blobService.ReadTextAsync(key, "email.txt");
       var mailer = new Mailer();
@@ -515,12 +485,12 @@ public static class Api
       switch (sendData.To)
       {
         case "preview":
-          mailer.Enqueue(context.User.GetEmail(), $"Preview: {title}", thisOrganisation.FromEmail, currentUserEmail, true, html, plainText);
+          mailer.Enqueue(context.User.GetEmail(), $"Preview: {title}", appSettings.FromEmail, currentUserEmail, true, html, plainText);
           await mailer.SendAsync();
           break;
 
         case "qa":
-          mailer.Enqueue(thisOrganisation.QualityAssuranceEmail, $"Please QA: {title}", thisOrganisation.FromEmail, currentUserEmail, true, html, plainText);
+          mailer.Enqueue(appSettings.QualityAssuranceEmail, $"Please QA: {title}", appSettings.FromEmail, currentUserEmail, true, html, plainText);
           await mailer.SendAsync();
           break;
 
@@ -539,7 +509,7 @@ public static class Api
             {
               foreach (var recipient in batch)
               {
-                mailer.Enqueue(recipient, title, thisOrganisation.FromEmail, null, true, html, plainText);
+                mailer.Enqueue(recipient, title, appSettings.FromEmail, null, true, html, plainText);
                 sent++;
               }
               await mailer.SendAsync();
@@ -549,12 +519,12 @@ public static class Api
               await outputStream.FlushAsync();
             }
 
-            if (thisOrganisation.SocialMediaEmail is not null)
+            if (appSettings.SocialMediaEmail is not null)
             {
               var socialMediaHtml = "<html><body style=\"font-family: arial, helvetica, sans-serif; font-size: 11pt\">Hi<br /><br />" +
                 "Please post the latest newsletter on social media.<br /><br />Best wishes<br /><br />" +
-                $"{thisOrganisation.Name}<br /><br /></body></html>";
-              mailer.Enqueue(thisOrganisation.SocialMediaEmail, "Newsletter", thisOrganisation.FromEmail, currentUserEmail, false, socialMediaHtml);
+                $"{appSettings.OrganisationName}<br /><br /></body></html>";
+              mailer.Enqueue(appSettings.SocialMediaEmail, "Newsletter", appSettings.FromEmail, currentUserEmail, false, socialMediaHtml);
               await mailer.SendAsync();
             }
 
@@ -579,6 +549,12 @@ public static class Api
     var submittedKeys = order is null ? [] : order.Split(',').Where(o => o.Length > 0).ToHashSet();
     return submittedKeys.SetEquals(validKeys);
   }
+
+  [GeneratedRegex(@"\s+")]
+  private static partial Regex WhitespaceRegex();
+
+  [GeneratedRegex(@"^[a-z0-9A-Z' \-:&]+$")]
+  private static partial Regex ArticleTitleRegex();
 }
 
 public static class AntiForgeryExtensions

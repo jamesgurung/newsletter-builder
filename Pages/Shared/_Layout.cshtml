@@ -2,7 +2,6 @@
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
   var antiforgeryToken = Antiforgery.GetAndStoreTokens(Context).RequestToken;
-  var navbarOrganisation = Organisation.ByDomain.Values.First();
   var bodyClass = ViewData["BodyClass"] as string;
 }
 <!DOCTYPE html>
@@ -19,7 +18,7 @@
     <div class="header-bar">
       <h1>
         <a class="navbar-brand" href="/">
-          <img class="navbar-logo" src="@navbarOrganisation.NewsletterUrl/logo-navbar.png" alt="@navbarOrganisation.Name logo" />
+          <img class="navbar-logo" src="@AppSettings.NewsletterUrl/logo-navbar.png" alt="@AppSettings.OrganisationName logo" />
           <span>Newsletter Builder</span>
         </a>
       </h1>
@@ -39,7 +38,6 @@
   </main>
   @if (User.Identity.IsAuthenticated) {
   <script>
-    const domain = '@User.GetDomain()';
     const antiforgeryToken = '@antiforgeryToken';
   </script>
   }

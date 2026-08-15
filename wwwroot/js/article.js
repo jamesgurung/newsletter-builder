@@ -109,7 +109,7 @@ function setImage(el, image, alt, consent) {
   el.dataset.image = (image && image.substring(0, 5) !== 'blob:') ? image : '';
 
   uploadElement.style.display = image ? 'none' : null;
-  imageElement.src = image ? (image.substring(0, 5) === 'blob:' ? image : `${blobBaseUrl}${domain}/${articleKey}/${image}?${sas}`) : '';
+  imageElement.src = image ? (image.substring(0, 5) === 'blob:' ? image : `${blobBaseUrl}${articleKey}/${image}?${sas}`) : '';
   imageElement.style.display = image ? null : 'none';
   altTextElement.contentEditable = !isGenerating && !isRejected;
   altTextElement.className = isGenerating ? 'alt-text alt-text-loading' : (isRejected ? 'alt-text alt-text-error' : 'alt-text');
@@ -565,7 +565,7 @@ function openBlurPanel(imageSection, imageName) {
   blurImage = new Image();
   blurImage.crossOrigin = 'anonymous';
   blurImage.onload = () => ctx.drawImage(blurImage, 0, 0, canvas.width, canvas.height);
-  blurImage.src = `${blobBaseUrl}${domain}/${articleKey}/${imageName}?${sas}`;
+  blurImage.src = `${blobBaseUrl}${articleKey}/${imageName}?${sas}`;
   document.getElementById('blur-editor').style.display = 'block';
 }
 

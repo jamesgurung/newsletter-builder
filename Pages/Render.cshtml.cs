@@ -17,8 +17,7 @@ public class RenderPageModel() : PageModel
 
   public async Task<IActionResult> OnGet(string date)
   {
-    var domain = User.GetDomain();
-    var tableService = new TableService(domain);
+    var tableService = new TableService();
     var newsletter = await tableService.GetNewsletterAsync(date);
     if (newsletter is null) return NotFound();
     var articles = await tableService.ListArticlesAsync(date);

@@ -16,8 +16,7 @@ public class ArticlePageModel() : PageModel
 
   public async Task<IActionResult> OnGet(string date, string articleName)
   {
-    var domain = User.GetDomain();
-    var tableService = new TableService(domain);
+    var tableService = new TableService();
     var key = $"{date}_{articleName}";
     Article = await tableService.GetArticleAsync(key);
     if (Article is null) return NotFound();
@@ -30,8 +29,8 @@ public class ArticlePageModel() : PageModel
     var newsletter = await tableService.GetNewsletterAsync(Article.Date);
     CoverPhoto = newsletter.CoverPhoto;
 
-    var blobService = new BlobService(domain);
-    BlobBaseUrl = $"{BlobService.Uri}photos/";
+    var blobService = new BlobService();
+    BlobBaseUrl = BlobService.PhotosUri;
     BlobSas = blobService.GetSasQueryString();
 
     return Page();

@@ -11,7 +11,7 @@ namespace NewsletterBuilder;
 
 public static class AuthConfig
 {
-  public static void ConfigureAuth(this WebApplicationBuilder builder)
+  public static void ConfigureAuth(this WebApplicationBuilder builder, AppSettings appSettings)
   {
     ArgumentNullException.ThrowIfNull(builder);
     builder.Services
@@ -40,7 +40,7 @@ public static class AuthConfig
             if (issued.HasValue && issued.Value > DateTimeOffset.UtcNow.AddDays(-1)) return;
 
             var email = context.Principal.GetEmail();
-            var user = await GetUserAsync(email);
+            var user = await GetUserAsync(email, appSettings);
             if (user is not null)
             {
               context.Principal = CreatePrincipal(user);
@@ -56,10 +56,11 @@ public static class AuthConfig
       })
       .AddOpenIdConnect("Microsoft", o =>
       {
-        o.Authority = $"https://login.microsoftonline.com/{builder.Configuration["Azure:TenantId"]}/v2.0/";
-        o.ClientId = builder.Configuration["Azure:ClientId"];
-        o.ClientSecret = builder.Configuration["Azure:ClientSecret"];
+        o.Authority = $"https://login.microsoftonline.com/{builder.Configuration["MicrosoftTenantId"]}/v2.0/";
+        o.ClientId = builder.Configuration["MicrosoftClientId"];
+        o.ClientSecret = builder.Configuration["MicrosoftClientSecret"];
         o.ResponseType = OpenIdConnectResponseType.Code;
+        o.ResponseMode = OpenIdConnectResponseMode.Query;
         o.MapInboundClaims = false;
         o.Scope.Clear();
         o.Scope.Add("openid");
@@ -69,7 +70,7 @@ public static class AuthConfig
           OnTicketReceived = async context =>
           {
             var email = context.Principal.FindFirstValue("upn")?.ToLowerInvariant();
-            var user = await GetUserAsync(email);
+            var user = await GetUserAsync(email, appSettings);
             if (user is not null)
             {
               context.Principal = CreatePrincipal(user);
@@ -87,11 +88,11 @@ public static class AuthConfig
     builder.Services.AddAuthorizationBuilder().SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
   }
 
-  private static async Task<User> GetUserAsync(string email)
+  private static async Task<User> GetUserAsync(string email, AppSettings appSettings)
   {
     var emailParts = email?.Split('@');
-    if (email is null || !Organisation.ByDomain.ContainsKey(emailParts[1])) return null;
-    var service = new TableService(emailParts[1]);
+    if (emailParts?.Length != 2 || !emailParts[1].Equals(appSettings.EmailDomain, StringComparison.OrdinalIgnoreCase)) return null;
+    var service = new TableService();
     return await service.GetUserAsync(emailParts[0]);
   }
 
@@ -127,7 +128,6 @@ public static class AuthConfig
   public static string GetFirstName(this ClaimsPrincipal user) => user?.Claims.FirstOrDefault(o => o.Type == ClaimTypes.GivenName)?.Value;
   public static string GetRoles(this ClaimsPrincipal user) => string.Join(", ", user?.Claims.Where(o => o.Type == ClaimTypes.Role).Select(o => o.Value) ?? []);
   public static string GetUsername(this ClaimsPrincipal user) => user?.Claims.FirstOrDefault(o => o.Type == ClaimTypes.Email)?.Value.Split('@')[0];
-  public static string GetDomain(this ClaimsPrincipal user) => user?.Claims.FirstOrDefault(o => o.Type == ClaimTypes.Email)?.Value.Split('@')[1];
 }
 
 public static class Roles
