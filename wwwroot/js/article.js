@@ -369,7 +369,7 @@ const cropperTemplate = `
     <cropper-selection initial-coverage="0.9" aspect-ratio="1.7777777777777777" movable resizable precise>
       <cropper-grid role="grid" bordered covered></cropper-grid>
       <cropper-crosshair centered></cropper-crosshair>
-      <cropper-handle action="move" theme-color="rgba(255, 255, 255, 0.35)"></cropper-handle>
+      <cropper-handle action="move" plain></cropper-handle>
       <cropper-handle action="n-resize"></cropper-handle>
       <cropper-handle action="e-resize"></cropper-handle>
       <cropper-handle action="s-resize"></cropper-handle>
