@@ -353,6 +353,13 @@ let cropperImage;
 let cropperSelection;
 let currentImageInputElement;
 let resettingCropperSelection = false;
+let cropperResizeStart;
+
+const cropperResizeObserver = new ResizeObserver(() => {
+  cropperSelection.$clear();
+  cropperImage.$center('contain');
+  resetCropperSelection();
+});
 
 const cropperTemplate = `
   <cropper-canvas background>
@@ -426,7 +433,52 @@ function onCropperSelectionChange(event) {
     event.preventDefault();
 }
 
+function onCropperResize(event) {
+  const { action, startX, startY, endX, endY } = event.detail;
+  if (!action.endsWith('-resize')) return;
+  event.preventDefault();
+  cropperResizeStart ??= {
+    action,
+    startX,
+    startY,
+    x: cropperSelection.x,
+    y: cropperSelection.y,
+    width: cropperSelection.width,
+    height: cropperSelection.height
+  };
+  const start = cropperResizeStart;
+  const direction = start.action.split('-')[0];
+  const west = direction.includes('w');
+  const east = direction.includes('e');
+  const north = direction.includes('n');
+  const south = direction.includes('s');
+  const ratio = cropperSelection.aspectRatio;
+  const anchorX = start.x + (west ? start.width : east ? 0 : start.width / 2);
+  const anchorY = start.y + (north ? start.height : south ? 0 : start.height / 2);
+  const canvasRect = cropperCanvas.getBoundingClientRect();
+  const bounds = getImageBounds(cropperImage.getBoundingClientRect(), canvasRect);
+  const left = Math.max(0, bounds.x);
+  const top = Math.max(0, bounds.y);
+  const right = Math.min(canvasRect.width, bounds.x + bounds.width);
+  const bottom = Math.min(canvasRect.height, bounds.y + bounds.height);
+  const maxWidth = Math.min(
+    west ? anchorX - left : east ? right - anchorX : 2 * Math.min(anchorX - left, right - anchorX),
+    (north ? anchorY - top : south ? bottom - anchorY : 2 * Math.min(anchorY - top, bottom - anchorY)) * ratio
+  );
+  const scale = Math.hypot(...cropperImage.$getTransform().slice(0, 2));
+  const delta = west || east ? (endX - start.startX) * (west ? -1 : 1) : (endY - start.startY) * (north ? -ratio : ratio);
+  const width = Math.min(maxWidth, Math.max(1120 * scale, start.width + delta));
+  const height = width / ratio;
+  cropperSelection.$change(
+    anchorX - (west ? width : east ? 0 : width / 2),
+    anchorY - (north ? height : south ? 0 : height / 2),
+    width,
+    height
+  );
+}
+
 function onCropperImageTransform(event) {
+  if (cropperSelection.hidden) return;
   const canvasRect = cropperCanvas.getBoundingClientRect();
   const imageClone = cropperImage.cloneNode();
   imageClone.style.transform = `matrix(${event.detail.matrix.join(', ')})`;
@@ -473,23 +525,30 @@ function onSelectImage(e) {
       await uploadImage(e.target.files[0], e.target.files[0].type);
       return;
     }
-    document.getElementById('image-editor').style.display = 'block';
+    document.getElementById('image-editor').style.display = 'grid';
     cropper = new Cropper.default(image, {
       template: cropperTemplate
     });
     cropperCanvas = cropper.getCropperCanvas();
     cropperImage = cropper.getCropperImage();
     cropperSelection = cropper.getCropperSelection();
+    await cropperImage.$ready();
+    cropperSelection.$clear();
+    cropperImage.$center('contain');
+    resetCropperSelection();
     cropperImage.addEventListener('transform', onCropperImageTransform);
     cropperSelection.addEventListener('change', onCropperSelectionChange);
-    await cropperImage.$ready();
-    resetCropperSelection();
+    cropperCanvas.addEventListener('actionstart', () => { cropperResizeStart = null; });
+    cropperCanvas.addEventListener('action', onCropperResize, true);
+    cropperResizeObserver.observe(cropperCanvas);
+    cropperResizeObserver.observe(cropperImage);
     document.getElementById('image-editor').style.opacity = 1;
   }
   image.src = URL.createObjectURL(e.target.files[0]);
 }
 
 document.getElementById('image-cancel').addEventListener('click', () => {
+  cropperResizeObserver.disconnect();
   const editor = document.getElementById('image-editor');
   editor.style.display = 'none';
   editor.style.opacity = 0;
@@ -502,6 +561,7 @@ document.getElementById('image-upload').addEventListener('click', async () => {
   const canvas = await cropperSelection.$toCanvas({ width: 1120, height: 630 });
   const type = currentImageInputElement.files[0].type;
   const blob = await new Promise(resolve => canvas.toBlob(resolve, type, 0.9));
+  cropperResizeObserver.disconnect();
   const editor = document.getElementById('image-editor');
   editor.style.display = 'none';
   editor.style.opacity = 0;
@@ -601,6 +661,7 @@ canvas.addEventListener('wheel', (event) => {
 });
 
 document.addEventListener('keydown', (event) => {
+  if (document.getElementById('blur-editor').style.display !== 'block') return;
   if (event.target.matches('input')) return;
   if (event.key === '-') {
     blurRadius = Math.max(10, blurRadius - 2);

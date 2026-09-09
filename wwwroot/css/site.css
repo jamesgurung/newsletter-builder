@@ -846,6 +846,10 @@ span.red {
 }
 
 #image-editor {
+  height: 100dvh;
+  grid-template-rows: auto minmax(0, 1fr);
+  padding-bottom: 18px;
+  box-sizing: border-box;
   opacity: 0;
 }
 
@@ -861,6 +865,11 @@ span.red {
   height: 90%;
   margin: 0 auto;
   background-color: #fff;
+}
+
+#cropper-container {
+  height: 100%;
+  min-height: 0;
 }
 
 #cropper-container cropper-canvas {

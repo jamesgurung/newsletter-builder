@@ -3,7 +3,7 @@
   "defaultProvider": "jsdelivr",
   "libraries": [
     {
-      "library": "cropperjs@2.1.1",
+      "library": "cropperjs@2.2.0",
       "destination": "wwwroot/lib/cropperjs/",
       "files": [
         "dist/cropper.min.js"
