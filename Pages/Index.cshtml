@@ -49,8 +49,8 @@
       <li data-key="@newsletter.RowKey" data-enableadd="@((isEditor || !deadlineReached).ToString().ToLowerInvariant())">
         <b>@newsletter.RowKey</b> (deadline @newsletter.Deadline)
         @if (isEditor) {
-          <a class="publish" href="/@newsletter.RowKey/publish">(Publish)</a>
-          <a class="delete">&#10006;</a>
+          <a class="publish" href="/@newsletter.RowKey/publish" title="Publish" aria-label="Publish"><span class="material-symbols-outlined" aria-hidden="true">send</span></a>
+          <a class="delete" role="button" tabindex="0" title="Delete newsletter" aria-label="Delete newsletter"><span class="material-symbols-outlined" aria-hidden="true">delete</span></a>
         }
         <ul>
           @foreach (var article in newsletterArticles)
@@ -71,11 +71,11 @@
               (@article.Contributors)
               @if (name != "intro") {
                 @if (isEditor) {
-                  <a class="moveup">&#9650;</a>
-                  <a class="movedown">&#9660;</a>
+                  <a class="moveup" role="button" tabindex="0" title="Move article up" aria-label="Move article up"><span class="material-symbols-outlined" aria-hidden="true">arrow_upward</span></a>
+                  <a class="movedown" role="button" tabindex="0" title="Move article down" aria-label="Move article down"><span class="material-symbols-outlined" aria-hidden="true">arrow_downward</span></a>
                 }
                 @if (!article.IsApproved && (isEditor || (article.Owner == username && !deadlineReached))) {
-                  <a class="deletearticle">&#10006;</a>
+                  <a class="deletearticle" role="button" tabindex="0" title="Delete article" aria-label="Delete article"><span class="material-symbols-outlined" aria-hidden="true">delete</span></a>
                 }
               }
             </li>
@@ -109,14 +109,14 @@
       <b>@ev.DisplayDate</b> - @ev.DisplayTitle
       @if (!ev.IsApproved) {
         if (isEditor) {
-          <a class="approve">(Approve)</a>
+          <a class="approve" role="button" tabindex="0" title="Approve event" aria-label="Approve event"><span class="material-symbols-outlined" aria-hidden="true">check</span></a>
         } else {
           <text>(Pending Approval) </text>
         }
       }
       @if (isEditor || ev.Owner == username)
       {
-        <a class="delete">&#10006;</a>
+        <a class="delete" role="button" tabindex="0" title="Delete event" aria-label="Delete event"><span class="material-symbols-outlined" aria-hidden="true">delete</span></a>
       }
     </li>
   }
@@ -139,7 +139,7 @@
   <ul id="users">
     @foreach (var user in users)
     {
-      <li data-key="@user.RowKey"><b>@user.RowKey</b> - @user.DisplayName (@user.FirstName) @if (user.RowKey != username) {<a class="delete">&#10006;</a>}</li>
+      <li data-key="@user.RowKey"><b>@user.RowKey</b> - @user.DisplayName (@user.FirstName) @if (user.RowKey != username) {<a class="delete" role="button" tabindex="0" title="Delete user" aria-label="Delete user"><span class="material-symbols-outlined" aria-hidden="true">delete</span></a>}</li>
     }
   </ul>
   <div id="addusersection">

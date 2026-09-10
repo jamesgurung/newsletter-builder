@@ -3,6 +3,14 @@
 const indexTabs = [...document.querySelectorAll('.index-tabs [role="tab"]')];
 const indexPanels = [...document.querySelectorAll('.index-section[role="tabpanel"]')];
 
+for (const panel of indexPanels) {
+  panel.addEventListener('keydown', e => {
+    if (!e.target.matches('a[role="button"]') || !['Enter', ' '].includes(e.key)) return;
+    e.preventDefault();
+    e.target.click();
+  });
+}
+
 function activateIndexTab(tab, updateHash = true) {
   for (const item of indexTabs) {
     const isActive = item === tab;
@@ -99,7 +107,7 @@ if (isEditor) {
     const resp = await request('/api/newsletters', 'POST', { RowKey: date, Deadline: deadline });
     if (!resp.ok) return;
     const li = document.createElement('li');
-    li.innerHTML = `<b>${date}</b> (deadline ${deadline}) <a class="publish" href="/${date}/publish">(Publish)</a> <a class="delete">&#10006;</a>`;
+    li.innerHTML = `<b>${date}</b> (deadline ${deadline}) <a class="publish" href="/${date}/publish" title="Publish" aria-label="Publish"><span class="material-symbols-outlined" aria-hidden="true">send</span></a> <a class="delete" role="button" tabindex="0" title="Delete newsletter" aria-label="Delete newsletter"><span class="material-symbols-outlined" aria-hidden="true">delete</span></a>`;
     li.dataset.key = date;
     const ul = document.createElement('ul');
     ul.appendChild(document.getElementById('addarticletemplate').content.cloneNode(true));
@@ -176,8 +184,8 @@ async function handleNewsletterClick(e) {
     if (!resp.ok) return;
     const li = document.createElement('li');
     const link = key.replace('_', '/');
-    const moveArticleButtons = isEditor ? '<a class="moveup">&#9650;</a> <a class="movedown">&#9660;</a>' : '';
-    li.innerHTML = `<span class="status notstarted" title="Not Started"></span><a href="/${link}"><b>${title}</b></a> (${contributors ?? me}) ${moveArticleButtons} <a class="deletearticle">&#10006;</a>`;
+    const moveArticleButtons = isEditor ? '<a class="moveup" role="button" tabindex="0" title="Move article up" aria-label="Move article up"><span class="material-symbols-outlined" aria-hidden="true">arrow_upward</span></a> <a class="movedown" role="button" tabindex="0" title="Move article down" aria-label="Move article down"><span class="material-symbols-outlined" aria-hidden="true">arrow_downward</span></a>' : '';
+    li.innerHTML = `<span class="status notstarted" title="Not Started"></span><a href="/${link}"><b>${title}</b></a> (${contributors ?? me}) ${moveArticleButtons} <a class="deletearticle" role="button" tabindex="0" title="Delete article" aria-label="Delete article"><span class="material-symbols-outlined" aria-hidden="true">delete</span></a>`;
     li.dataset.key = key;
     e.target.parentNode.parentNode.insertBefore(li, e.target.parentNode.parentNode.querySelector('.addarticlesection'));
     inputs[0].value = '';
@@ -259,7 +267,7 @@ document.getElementById('addevent').addEventListener('click', async e => {
   if (!resp.ok) return;
   const ev = await resp.json();
   const li = document.createElement('li');
-  li.innerHTML = `<b>${ev.displayDate}</b> - ${ev.displayTitle}${isEditor ? '' : ' (Pending Approval)'} <a class="delete">&#10006;</a>`;
+  li.innerHTML = `<b>${ev.displayDate}</b> - ${ev.displayTitle}${isEditor ? '' : ' (Pending Approval)'} <a class="delete" role="button" tabindex="0" title="Delete event" aria-label="Delete event"><span class="material-symbols-outlined" aria-hidden="true">delete</span></a>`;
   li.dataset.key = ev.rowKey;
   if (!isEditor) li.classList.add('pendingapproval');
   document.getElementById('events').appendChild(li);
@@ -269,7 +277,8 @@ document.getElementById('addevent').addEventListener('click', async e => {
 document.getElementById('events').addEventListener('click', async e => {
   if (e.target.classList.contains('delete')) {
     const li = e.target.closest('li');
-    if (!confirm(`Are you sure you want to delete this event?\n${li.innerText.slice(0, -4)}`)) return;
+    const eventText = [...li.childNodes].filter(node => node.nodeName !== 'A').map(node => node.textContent).join('').trim();
+    if (!confirm(`Are you sure you want to delete this event?\n${eventText}`)) return;
     const key = li.dataset.key;
     const resp = await request(`/api/events/${key}`, 'DELETE');
     if (!resp.ok) return;
@@ -297,7 +306,7 @@ if (isAdmin) {
     const resp = await request('/api/users', 'POST', { RowKey: username, FirstName: userfirst, DisplayName: userdisplay });
     if (!resp.ok) return;
     const li = document.createElement('li');
-    li.innerHTML = `<b>${username}</b> - ${userdisplay} (${userfirst}) <a class="delete">&#10006;</a>`;
+    li.innerHTML = `<b>${username}</b> - ${userdisplay} (${userfirst}) <a class="delete" role="button" tabindex="0" title="Delete user" aria-label="Delete user"><span class="material-symbols-outlined" aria-hidden="true">delete</span></a>`;
     li.dataset.key = username;
     document.getElementById('users').appendChild(li);
     clearAndFocus(['username', 'userdisplay', 'userfirst']);

@@ -306,6 +306,15 @@ a.view {
   font-size: 0.75rem;
 }
 
+.index-page a .material-symbols-outlined {
+  width: 18px;
+  height: 18px;
+  overflow: hidden;
+  font-size: 18px;
+  vertical-align: -3px;
+  pointer-events: none;
+}
+
 a.delete,
 a.deletearticle {
   color: #b42318;
@@ -637,34 +646,110 @@ span.red {
   position: relative;
 }
 
-.newsletter-content section:hover .section-menu,
-.newsletter-content section:focus-within .section-menu {
-  opacity: 1;
+.newsletter-content section:focus-within {
+  z-index: 1;
 }
 
-.newsletter-content .section-menu {
+.newsletter-content section.section-active {
+  z-index: 2;
+}
+
+.newsletter-content section.section-active[data-includeimage="true"]::after {
+  content: '';
   position: absolute;
   top: 0;
-  right: -30px;
-  height: 100%;
-  padding: 6px 10px;
-  opacity: 0;
+  bottom: 0;
+  left: 100%;
+  width: 32px;
 }
 
-.newsletter-content .section-delete {
-  color: #b9bec5;
+.newsletter-content section.section-active > .section-text {
+  border-color: #9ba7b5;
+}
+
+.newsletter-content section.section-active :is(.section-menu,.section-add),
+.newsletter-content article:not(:has(.section-active)) section:focus-within :is(.section-menu,.section-add) {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.newsletter-content .section-menu,
+.newsletter-content section > .section-add {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: -32px;
+  display: flex;
+  flex-direction: column;
+  width: 28px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #e4e7ec, 0 2px 6px rgb(15 23 42 / 8%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.newsletter-content section > .section-add {
+  top: auto;
+  bottom: 0;
+}
+
+.newsletter-content .section-menu[hidden],
+.newsletter-content .section-add[hidden],
+.newsletter-content .section-toggle-image[hidden] {
+  display: none;
+}
+
+.newsletter-content .section-menu button,
+.newsletter-content .section-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 2px;
+  padding: 5px;
+  background: #fff;
+  color: #667085;
+  font: inherit;
   cursor: pointer;
 }
 
-.newsletter-content .section-delete:hover {
-  color: #b42318;
-  text-decoration: none;
+.newsletter-content .section-menu button:focus-visible,
+.newsletter-content .section-add:focus-visible {
+  outline: 2px solid #1379ce;
+  outline-offset: 1px;
 }
 
-.newsletter-content section:has(.section-delete:hover) > div:not(.section-menu) {
-  border-color: #b42318;
-  border-style: dashed;
-  border-width: 3px;
+.newsletter-content .section-menu button:not(:disabled):hover,
+.newsletter-content .section-add:hover {
+  background: #edf4fa;
+  color: #1769aa;
+}
+
+.newsletter-content .section-menu button:disabled {
+  color: #c4c9d0;
+  cursor: default;
+}
+
+.newsletter-content .section-menu .material-symbols-outlined,
+.newsletter-content .section-add .material-symbols-outlined {
+  width: 18px;
+  height: 18px;
+  overflow: hidden;
+  font-size: 18px;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.newsletter-content .section-menu .section-delete:hover {
+  background: #fff1f0;
+  color: #b42318;
+}
+
+.newsletter-content section:has(.section-delete:hover) > :is(.section-text,.section-image) {
+  border-color: #d49a93;
 }
 
 #submit,
@@ -926,10 +1011,22 @@ span.red {
     padding: 9px;
   }
 
-  .newsletter-content .section-menu {
-    right: 0;
-    height: auto;
-    opacity: 1;
+  .newsletter-content .section-menu,
+  .newsletter-content section > .section-add {
+    right: -24px;
+    width: 24px;
+    padding-left: 0;
+  }
+
+  .newsletter-content section.section-active[data-includeimage="true"]::after {
+    width: 24px;
+  }
+
+  .newsletter-content .section-menu > button,
+  .newsletter-content .section-add {
+    width: 24px;
+    height: 24px;
+    padding: 3px;
   }
 
   .article-page .article-heading {
@@ -1176,19 +1273,12 @@ span.red {
 .index-page a.delete,
 .index-page a.deletearticle,
 .index-page a.moveup,
-.index-page a.movedown {
+.index-page a.movedown,
+.index-page a.publish {
   margin-left: 0.5rem;
   color: #9ca3af;
-  font-size: 0.85rem;
   line-height: 1;
   text-decoration: none;
-}
-
-.index-page a.publish,
-.index-page a.approve,
-.index-page a.moveup,
-.index-page a.movedown {
-  font-size: 0.8rem;
 }
 
 .index-page .recipients-action {

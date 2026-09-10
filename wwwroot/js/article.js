@@ -10,6 +10,10 @@ const repeatedSpaces = /\s\s+/g;
 
 let inputsIdx = 0;
 let saved = true;
+let editVersion = 0;
+let saveQueue = Promise.resolve(true);
+let activeSection = null;
+let toolbarOrigin = null;
 
 // Load article
 
@@ -25,36 +29,34 @@ if (content) {
     addSection(true); addSection(true); addSection(true);
   }
 }
+if (!article.childElementCount && !isApproved && (!isSubmitted || isEditor)) addSection(!isIntro);
 configureInput([document.getElementById('headline')]);
 if (isEditor) {
   const metadataValues = new Map([[articleTitle, articleTitle.innerText], [articleContributors, articleContributors.innerText]]);
   for (const el of [articleTitle, articleContributors]) {
-    el.addEventListener('input', () => saved = false);
+    el.addEventListener('input', () => { saved = false; editVersion++; });
     el.addEventListener('blur', async e => {
       if (saved) return;
       if (e.target === articleTitle)
         e.target.innerText = e.target.innerText.replace(/\s+/g, ' ').trim();
       else
         e.target.innerText = e.target.innerText.split(',').map(o => o.trim().toLowerCase()).join(',');
-      if (e.target.innerText === metadataValues.get(e.target)) {
-        saved = true;
-        return;
-      }
-      const resp = await request(`/api/articles/${articleKey}/metadata`, 'PUT', {
-        title: articleTitle.innerText,
-        contributors: articleContributors.innerText,
-        etag
+      await queueSave(async () => {
+        if (e.target.innerText === metadataValues.get(e.target)) return true;
+        const title = articleTitle.innerText;
+        const contributors = articleContributors.innerText;
+        const resp = await request(`/api/articles/${articleKey}/metadata`, 'PUT', { title, contributors, etag });
+        if (!resp.ok) {
+          e.target.innerText = metadataValues.get(e.target);
+          window.location.reload();
+          return false;
+        }
+        etag = await resp.json();
+        metadataValues.set(articleTitle, title);
+        metadataValues.set(articleContributors, contributors);
+        flash(e.target);
+        return true;
       });
-      if (!resp.ok) {
-        e.target.innerText = metadataValues.get(e.target);
-        saved = true;
-        return;
-      }
-      etag = await resp.json();
-      metadataValues.set(articleTitle, articleTitle.innerText);
-      metadataValues.set(articleContributors, articleContributors.innerText);
-      flash(e.target);
-      saved = true;
     });
   }
 }
@@ -69,25 +71,51 @@ updateCoverPhotoLinks();
 
 // Add section
 
-function addSection(includeImage, text, image, alt, consent) {
-  const section = document.getElementById('sectiontemplate').content.cloneNode(true)
-  article.appendChild(section);
-  article.lastElementChild.dataset.includeimage = includeImage ? 'true' : 'false';
-  const textElement = article.lastElementChild.getElementsByClassName('section-text')[0];
+function addSection(includeImage, text, image, alt, consent, before = null) {
+  const section = document.getElementById('sectiontemplate').content.firstElementChild.cloneNode(true);
+  article.insertBefore(section, before);
+  section.dataset.includeimage = includeImage ? 'true' : 'false';
+  const textElement = section.querySelector('.section-text');
   configureInput([textElement]);
   if (text) textElement.innerText = text;
-  const imageElement = article.lastElementChild.getElementsByClassName('section-image')[0];
-  if (includeImage) {
-    imageElement.getElementsByTagName('input')[0].addEventListener('change', onSelectImage);
-    const checkbox = imageElement.querySelector('input[type="checkbox"]');
-    checkbox.addEventListener('change', async e => {
-      if (!await save()) return;
-      flash(e.target.parentNode.parentNode);
-    });
-    configureInput([imageElement.querySelector('.alt-text')]);
-    setImage(imageElement, image, alt, consent);
-  } else {
-    imageElement.remove();
+  const imageElement = section.querySelector('.section-image');
+  imageElement.hidden = !includeImage;
+  const fileInput = imageElement.querySelector('input[type="file"]');
+  fileInput.addEventListener('click', () => {
+    imageElement.dataset.pendingimage = 'true';
+    updateSectionControls();
+  });
+  fileInput.addEventListener('cancel', () => {
+    resetImageInput(fileInput);
+  });
+  fileInput.addEventListener('change', onSelectImage);
+  imageElement.querySelector('input[type="checkbox"]').addEventListener('change', async e => {
+    if (!await save()) return;
+    flash(e.target.parentNode.parentNode);
+  });
+  configureInput([imageElement.querySelector('.alt-text')]);
+  setImage(imageElement, image, alt, consent);
+  return section;
+}
+
+function updateSectionControls() {
+  const locked = isApproved || (isSubmitted && !isEditor);
+  if (locked || !activeSection?.isConnected) setActiveSection(null);
+  for (const section of article.children) {
+    section.querySelector('.section-menu').hidden = locked;
+    section.querySelector('.section-up').disabled = !section.previousElementSibling;
+    section.querySelector('.section-down').disabled = !section.nextElementSibling;
+    const insert = section.querySelector('.section-add');
+    const insertParent = section.dataset.includeimage === 'true' ? section : section.querySelector('.section-menu');
+    if (insert.parentNode !== insertParent) insertParent.append(insert);
+    insert.hidden = locked;
+    const toggle = section.querySelector('.section-toggle-image');
+    if (!toggle) continue;
+    const imageElement = section.querySelector('.section-image');
+    toggle.hidden = !isEditor || !!imageElement.dataset.pendingimage || !!imageElement.querySelector('img').getAttribute('src');
+    toggle.title = section.dataset.includeimage === 'true' ? 'Use text only' : 'Add image space';
+    toggle.setAttribute('aria-label', toggle.title);
+    toggle.querySelector('.material-symbols-outlined').textContent = section.dataset.includeimage === 'true' ? 'image_not_supported' : 'image';
   }
 }
 
@@ -123,40 +151,57 @@ function setImage(el, image, alt, consent) {
   blurImageElement.style.display = image && !isGenerating && !isRejected ? null : 'none';
   approveElement.style.display = image && isRejected && isAdmin ? null : 'none';
   setCoverPhotoElement.style.display = 'none';
+  updateSectionControls();
 }
 
 // Configure input constraints and autosave
 
-async function save() {
-  content = {
-    headline: headline.innerText,
-    sections: [...article.getElementsByTagName('section')].map(el => {
-      const imageSection = el.getElementsByClassName('section-image')[0];
-      const includeImage = el.dataset.includeimage === 'true';
-      const imageUrl = includeImage && imageSection.dataset.image ? imageSection.dataset.image : null;
-      const alt = imageUrl ? imageSection.querySelector('.alt-text') : null;
-      const isAltTextLoading = imageUrl ? alt.classList.contains('alt-text-loading') : null;
-      const altText = imageUrl ? (alt.dataset.rejection || (isAltTextLoading ? '' : alt.innerText)) : null;
-      const consent = imageUrl ? imageSection.querySelector('input[type="checkbox"]').checked : false;
-      return {
-        text: el.getElementsByClassName('section-text')[0].innerText,
-        includeImage: includeImage,
-        image: imageUrl,
-        alt: altText ? altText : null,
-        consent: consent
-      };
-    }),
-    etag
-  };
-  const resp = await request(`/api/articles/${articleKey}/content`, 'PUT', content);
-  if (!resp.ok) {
-    saved = true;
-    window.location.reload();
+function queueSave(action) {
+  const version = ++editVersion;
+  saved = false;
+  saveQueue = saveQueue.then(async success => {
+    if (!success) return false;
+    const result = await action();
+    if (result && version === editVersion) saved = true;
+    return result;
+  }).catch(() => {
+    alert('Unable to save changes. Please reload the page before continuing.');
     return false;
-  }
-  document.getElementById('requestaifeedback').classList.remove('disabled');
-  etag = await resp.json();
-  return true;
+  });
+  return saveQueue;
+}
+
+function save() {
+  return queueSave(async () => {
+    content = {
+      headline: headline.innerText,
+      sections: [...article.getElementsByTagName('section')].map(el => {
+        const imageSection = el.getElementsByClassName('section-image')[0];
+        const includeImage = el.dataset.includeimage === 'true';
+        const imageUrl = includeImage && imageSection.dataset.image ? imageSection.dataset.image : null;
+        const alt = imageUrl ? imageSection.querySelector('.alt-text') : null;
+        const isAltTextLoading = imageUrl ? alt.classList.contains('alt-text-loading') : null;
+        const altText = imageUrl ? (alt.dataset.rejection || (isAltTextLoading ? '' : alt.innerText)) : null;
+        const consent = imageUrl ? imageSection.querySelector('input[type="checkbox"]').checked : false;
+        return {
+          text: el.getElementsByClassName('section-text')[0].innerText,
+          includeImage: includeImage,
+          image: imageUrl,
+          alt: altText ? altText : null,
+          consent: consent
+        };
+      }),
+      etag
+    };
+    const resp = await request(`/api/articles/${articleKey}/content`, 'PUT', content);
+    if (!resp.ok) {
+      window.location.reload();
+      return false;
+    }
+    document.getElementById('requestaifeedback').classList.remove('disabled');
+    etag = await resp.json();
+    return true;
+  });
 }
 
 function configureInput(elements) {
@@ -177,6 +222,7 @@ function configureInput(elements) {
         if (pos > 0) document.getSelection().setPosition(e.target.firstChild, pos);
       }
       saved = false;
+      editVersion++;
     });
 
     el.addEventListener('blur', async e => {
@@ -184,7 +230,6 @@ function configureInput(elements) {
       e.target.innerText = e.target.innerText.replace(invalidWhitespace, ' ').replace(repeatedSpaces, ' ').trim();
       if (!await save()) return;
       flash(e.target);
-      saved = true;
     });
   }
 }
@@ -201,14 +246,93 @@ window.addEventListener('beforeunload', e => {
 
 // Add and remove sections
 
-document.getElementById('addsection').addEventListener('click', () => { addSection(true); });
-if (isEditor || isOwner) {
-  document.getElementById('addtextsection').addEventListener('click', () => { addSection(false); });
+function setActiveSection(section) {
+  if (section === activeSection) return;
+  activeSection?.classList.remove('section-active');
+  activeSection = section;
+  activeSection?.classList.add('section-active');
+  toolbarOrigin = null;
 }
 
+document.addEventListener('pointermove', e => {
+  if (e.pointerType === 'touch') return;
+  if (activeSection?.isConnected) {
+    const menu = activeSection.querySelector('.section-menu');
+    const controls = [...activeSection.querySelectorAll(':scope > .section-menu,:scope > .section-add')];
+    const sectionRect = activeSection.getBoundingClientRect();
+    if (!menu.hidden) {
+      if (e.clientX >= sectionRect.left && e.clientX <= sectionRect.right && e.clientY >= sectionRect.top && e.clientY <= sectionRect.bottom) {
+        toolbarOrigin = { x: e.clientX, y: e.clientY };
+        return;
+      }
+      if (controls.some(control => control.contains(e.target))) {
+        toolbarOrigin = { x: e.clientX, y: e.clientY };
+        return;
+      }
+      if (toolbarOrigin) {
+        // Keep direct paths to either the toolbar or the separate image add button open.
+        for (const control of controls) {
+          const rect = control.getBoundingClientRect();
+          let enter = 1;
+          let leave = Infinity;
+          for (const [position, origin, min, max] of [
+            [e.clientX, toolbarOrigin.x, rect.left - 2, rect.right + 2],
+            [e.clientY, toolbarOrigin.y, rect.top - 2, rect.bottom + 2]
+          ]) {
+            const delta = position - origin;
+            if (delta === 0) {
+              if (origin < min || origin > max) leave = -1;
+            } else {
+              enter = Math.max(enter, Math.min((min - origin) / delta, (max - origin) / delta));
+              leave = Math.min(leave, Math.max((min - origin) / delta, (max - origin) / delta));
+            }
+          }
+          if (enter <= leave) return;
+        }
+      }
+    }
+  }
+  const section = e.target.closest('section');
+  setActiveSection(section?.parentElement === article && !section.querySelector('.section-menu').hidden ? section : null);
+  if (activeSection) toolbarOrigin = { x: e.clientX, y: e.clientY };
+});
+
+document.addEventListener('pointerdown', e => {
+  const section = e.target.closest('section');
+  setActiveSection(section?.parentElement === article && !section.querySelector('.section-menu').hidden ? section : null);
+});
+
+document.addEventListener('pointerleave', () => setActiveSection(null));
+article.addEventListener('focusin', e => setActiveSection(e.target.closest('section')));
+
 article.addEventListener('click', async e => {
-  if (e.target.classList.contains('section-delete')) {
-    const section = e.target.closest('section');
+  if ((isApproved || (isSubmitted && !isEditor)) && !e.target.classList.contains('set-cover-photo')) return;
+  const section = e.target.closest('section');
+  if (!section) return;
+  if (e.target.matches('.section-up,.section-down')) {
+    const up = e.target.classList.contains('section-up');
+    const adjacent = up ? section.previousElementSibling : section.nextElementSibling;
+    if (!adjacent) return;
+    article.insertBefore(section, up ? adjacent : adjacent.nextElementSibling);
+    updateSectionControls();
+    (e.target.disabled ? section.querySelector(up ? '.section-down' : '.section-up') : e.target).focus();
+    await save();
+  }
+  else if (e.target.classList.contains('section-add')) {
+    const added = addSection(true, null, null, null, false, section.nextElementSibling);
+    added.querySelector('.section-text').focus();
+    await save();
+  }
+  else if (e.target.classList.contains('section-toggle-image')) {
+    const imageElement = section.querySelector('.section-image');
+    if (!isEditor || imageElement.dataset.pendingimage || imageElement.querySelector('img').getAttribute('src')) return;
+    const includeImage = section.dataset.includeimage !== 'true';
+    section.dataset.includeimage = includeImage ? 'true' : 'false';
+    imageElement.hidden = !includeImage;
+    updateSectionControls();
+    await save();
+  }
+  else if (e.target.classList.contains('section-delete')) {
     if (section.querySelector('.section-text').innerText || (section.dataset.includeimage === 'true' && section.querySelector('.section-image').dataset.image)) {
       if (!confirm('Are you sure you want to delete this paragraph and photo?')) return;
     }
@@ -219,6 +343,8 @@ article.addEventListener('click', async e => {
       }
     }
     section.remove();
+    if (!article.childElementCount) addSection(!isIntro);
+    updateSectionControls();
     await save();
   }
   else if (e.target.classList.contains('clear-image')) {
@@ -268,6 +394,7 @@ function isValid(verb) {
 }
 
 document.getElementById('submit').addEventListener('click', async () => {
+  if (!await saveQueue) return;
   if (isSubmitted) {
     if (!isEditor) return;
     if (!confirm('Are you sure you want to unsubmit this article?')) return;
@@ -285,12 +412,13 @@ document.getElementById('submit').addEventListener('click', async () => {
   if (!confirm('Are you sure you are ready to submit this article?\nNo changes can be made after submission.')) return;
   const resp = await request(`/api/articles/${articleKey}/submit`, 'POST', { etag });
   etag = await resp.json();
-  lockEditing();
   isSubmitted = true;
+  lockEditing();
 });
 
 if (isEditor) {
   document.getElementById('approve').addEventListener('click', async () => {
+    if (!await saveQueue) return;
     if (isApproved) {
       const resp = await request(`/api/articles/${articleKey}/unapprove`, 'POST', { etag });
       etag = await resp.json();
@@ -300,10 +428,11 @@ if (isEditor) {
       button.style.cursor = '';
       isApproved = false;
       [...document.querySelectorAll('#article-title,#article-contributors,#headline,.section-text,.alt-text')].forEach(el => el.contentEditable = true);
-      [...document.querySelectorAll('.section-delete,.clear-image,.blur-image-section,#addsectioncontainer,#submit')].forEach(el => el.style.display = '');
+      [...document.querySelectorAll('.section-delete,.clear-image,.blur-image-section,#submit')].forEach(el => el.style.display = '');
       [...document.querySelectorAll('.section-text,.section-image,#headline')].forEach(el => el.style.border = '');
       [...document.querySelectorAll('input')].forEach(el => el.disabled = false);
       updateCoverPhotoLinks();
+      updateSectionControls();
       document.getElementById('requestaifeedback').style.display = '';
       return;
     }
@@ -316,6 +445,7 @@ if (isEditor) {
 }
 
 function lockEditing() {
+  updateSectionControls();
   const button = document.getElementById('submit');
   const approveButton = document.getElementById('approve');
   const aiButton = document.getElementById('requestaifeedback');
@@ -337,7 +467,7 @@ function lockEditing() {
     }
     aiButton.style.display = 'none';
     [...document.querySelectorAll('#article-title,#article-contributors,#headline,.section-text,.alt-text')].forEach(el => el.contentEditable = false);
-    [...document.querySelectorAll('.section-delete,.clear-image,.blur-image-section,#addsectioncontainer')].forEach(el => el.style.display = 'none');
+    [...document.querySelectorAll('.section-delete,.clear-image,.blur-image-section')].forEach(el => el.style.display = 'none');
     [...document.querySelectorAll('.section-text,.section-image,#headline')].forEach(el => el.style.border = 'none');
     [...document.querySelectorAll('input')].forEach(el => el.disabled = true);
     
@@ -346,6 +476,12 @@ function lockEditing() {
 }
 
 // Image cropping and uploading
+
+function resetImageInput(input) {
+  input.value = null;
+  delete input.closest('.section-image').dataset.pendingimage;
+  updateSectionControls();
+}
 
 let cropper;
 let cropperCanvas;
@@ -508,16 +644,23 @@ function onCropperImageTransform(event) {
 }
 
 function onSelectImage(e) {
-  if (!e.target.files || e.target.files.length === 0 || !e.target.files[0]) return;
+  if (!e.target.files || e.target.files.length === 0 || !e.target.files[0]) {
+    resetImageInput(e.target);
+    return;
+  }
   const type = e.target.files[0].type;
   if (type !== 'image/jpeg' && type !== 'image/png') {
     alert('Only JPG and PNG images are supported.');
+    resetImageInput(e.target);
     return;
   }
+  e.target.closest('.section-image').dataset.pendingimage = 'true';
+  updateSectionControls();
   const image = document.getElementById('cropper-image');
   image.onload = async () => {
     if (image.naturalWidth < 1120 || image.naturalHeight < 630) {
       alert('Please select a higher-quality photo.\nThe image must be at least 1120 x 630 pixels.');
+      resetImageInput(e.target);
       return;
     }
     currentImageInputElement = e.target;
@@ -544,6 +687,10 @@ function onSelectImage(e) {
     cropperResizeObserver.observe(cropperImage);
     document.getElementById('image-editor').style.opacity = 1;
   }
+  image.onerror = () => {
+    alert('Unable to load this photo. Please select another image.');
+    resetImageInput(e.target);
+  };
   image.src = URL.createObjectURL(e.target.files[0]);
 }
 
@@ -553,7 +700,7 @@ document.getElementById('image-cancel').addEventListener('click', () => {
   editor.style.display = 'none';
   editor.style.opacity = 0;
   cropper.destroy();
-  currentImageInputElement.value = null;
+  resetImageInput(currentImageInputElement);
   currentImageInputElement = null;
 });
 
@@ -581,29 +728,34 @@ document.getElementById('rotate-right').addEventListener('click', () => {
 });
 
 async function uploadImage(blob, type) {
-  const imageSection = currentImageInputElement.closest('.section-image');
-  var blobUrl = URL.createObjectURL(blob);
+  const input = currentImageInputElement;
+  const imageSection = input.closest('.section-image');
+  const blobUrl = URL.createObjectURL(blob);
   setImage(imageSection, blobUrl, 'generating');
-  const resp = await fetch(`/api/articles/${articleKey}/image`, {
-    method: 'POST',
-    headers: { 'X-XSRF-TOKEN': antiforgeryToken, 'Content-Type': type },
-    body: blob
-  });
-  if (!resp.ok) {
-    alert(await resp.json());
-    return;
+  try {
+    const resp = await fetch(`/api/articles/${articleKey}/image`, {
+      method: 'POST',
+      headers: { 'X-XSRF-TOKEN': antiforgeryToken, 'Content-Type': type },
+      body: blob
+    });
+    if (!resp.ok) {
+      alert(await resp.json());
+      setImage(imageSection, null);
+      return;
+    }
+    const imageUrl = await resp.json();
+    setImage(imageSection, imageUrl, 'generating');
+    const describeResp = await request(`/api/articles/${articleKey}/image/${imageUrl}/describe`, 'POST');
+    setImage(imageSection, imageUrl, describeResp.ok ? await describeResp.json() : null);
+    await save();
+  } catch {
+    alert('Unable to finish uploading this photo. Please try again.');
+    setImage(imageSection, imageSection.dataset.image);
+    if (imageSection.dataset.image) await save();
+  } finally {
+    URL.revokeObjectURL(blobUrl);
+    resetImageInput(input);
   }
-  currentImageInputElement.value = null;
-  const imageUrl = await resp.json();
-  const describeResp = await request(`/api/articles/${articleKey}/image/${imageUrl}/describe`, 'POST');
-  if (describeResp.ok) {
-    const description = await describeResp.json();
-    setImage(imageSection, imageUrl, description);
-  } else {
-    setImage(imageSection, imageUrl);
-  }
-  URL.revokeObjectURL(blobUrl);
-  await save();
 }
 
 // Image blurring
