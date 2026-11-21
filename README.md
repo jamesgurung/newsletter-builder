@@ -37,7 +37,7 @@ Newsletter Builder is a free, open-source web application that makes school news
     - Customise the contents of the `StaticWebsite` folder in this repository, for example replacing placeholders with their appropriate values. Then upload to the `$web` blob container. Also upload `logo.jpg` (250x250px), `logo-hd.jpg` (1200x1200px), `favicon.ico`, and `icon-192x192.png`.
     - Enable CORS for blob `GET` requests from the domain where the newsletter builder will be hosted (e.g. `https://build.newsletter.example.com`).
 
-3. Create an [Azure AI Foundry](https://ai.azure.com/) project and deploy an OpenAI reasoning model (e.g. `gpt-5.1`) that you would like to use for giving feedback on articles.
+3. Create an [Azure AI Foundry](https://ai.azure.com/) project and deploy an OpenAI reasoning model (e.g. `gpt-6.2-sol`) that you would like to use for giving feedback on articles.
 
 4. Create an Azure app registration.
     - Name - `Newsletter Builder`

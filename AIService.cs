@@ -21,6 +21,14 @@ public static class AIService
     _deployment = deployment;
   }
 
+  private static void AddCacheableDeveloperMessage(CreateResponseOptions options, string instructions)
+  {
+    var content = ResponseContentPart.CreateInputTextPart(instructions);
+    content.Patch.Set("$.prompt_cache_breakpoint.mode"u8, "explicit");
+    options.InputItems.Add(ResponseItem.CreateDeveloperMessageItem([content]));
+    options.Patch.Set("$.prompt_cache_options.mode"u8, "explicit");
+  }
+
   private static readonly BinaryData describePhotoSchema = BinaryData.FromBytes("""
     {
       "type": "object",
@@ -76,14 +84,13 @@ public static class AIService
     var options = new CreateResponseOptions
     {
       Model = _deployment,
-      Instructions = instructions,
       ReasoningOptions = new ResponseReasoningOptions { ReasoningEffortLevel = "low" },
       StoredOutputEnabled = false,
       TextOptions = new ResponseTextOptions { TextFormat = ResponseTextFormat.CreateJsonSchemaFormat("photo", describePhotoSchema, jsonSchemaIsStrict: true) },
       EndUserId = identifier
     };
+    AddCacheableDeveloperMessage(options, instructions);
     options.InputItems.Add(userMessage);
-    options.Patch.Set("$.prompt_cache_options.mode"u8, "explicit");
 
     var response = await _client.CreateResponseAsync(options);
     var json = response.Value.OutputItems.Select(o => o as MessageResponseItem).First(o => o is not null).Content.First().Text;
@@ -130,7 +137,6 @@ public static class AIService
     var options = new CreateResponseOptions
     {
       Model = _deployment,
-      Instructions = instructions,
       ReasoningOptions = new ResponseReasoningOptions { ReasoningEffortLevel = "low" },
       StoredOutputEnabled = false,
       EndUserId = identifier,
@@ -138,8 +144,9 @@ public static class AIService
     };
 
     var spagUserMessage = ResponseItem.CreateUserMessageItem(spagPrompt);
+    AddCacheableDeveloperMessage(options, instructions);
     options.InputItems.Add(spagUserMessage);
-    var spagStreamingResult = _client.CreateResponseStreamingAsync(options);
+    var spagStreamingResult = await _client.CreateResponseStreamingAsync(options);
     var spagBuilder = new StringBuilder();
 
     await foreach (var update in spagStreamingResult)
@@ -152,8 +159,7 @@ public static class AIService
 
     options.InputItems.Add(ResponseItem.CreateAssistantMessageItem(spagBuilder.ToString()));
     options.InputItems.Add(ResponseItem.CreateUserMessageItem(stylePrompt));
-    options.Patch.Set("$.prompt_cache_options.mode"u8, "explicit");
-    var styleStreamingResult = _client.CreateResponseStreamingAsync(options);
+    var styleStreamingResult = await _client.CreateResponseStreamingAsync(options);
 
     await foreach (var update in styleStreamingResult)
     {
@@ -181,14 +187,13 @@ public static class AIService
     var options = new CreateResponseOptions
     {
       Model = _deployment,
-      Instructions = instructions,
       ReasoningOptions = new ResponseReasoningOptions { ReasoningEffortLevel = "medium" },
       StoredOutputEnabled = false,
       TextOptions = new ResponseTextOptions { TextFormat = ResponseTextFormat.CreateJsonSchemaFormat("article", writeArticleSchema, jsonSchemaIsStrict: true) },
       EndUserId = identifier
     };
+    AddCacheableDeveloperMessage(options, instructions);
     options.InputItems.Add(userMessage);
-    options.Patch.Set("$.prompt_cache_options.mode"u8, "explicit");
 
     var response = await _client.CreateResponseAsync(options);
     var json = response.Value.OutputItems.Select(o => o as MessageResponseItem).First(o => o is not null).Content.First().Text;
